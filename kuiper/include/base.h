@@ -9,6 +9,15 @@ enum class DeviceType : uint8_t {
     kDeviceCUDA = 2,
 };
 
+class NoCopyable {
+protected:
+    NoCopyable() = default;
+
+    ~NoCopyable() = default;
+
+    NoCopyable(const NoCopyable&) = delete;
+    NoCopyable& operator=(const NoCopyable&) = delete;
+};
 
 }
 
