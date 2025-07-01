@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <string>
+#include <glog/logging.h>
 
 
 namespace base {
@@ -17,6 +19,13 @@ protected:
 
     NoCopyable(const NoCopyable&) = delete;
     NoCopyable& operator=(const NoCopyable&) = delete;
+};
+
+enum class DataType : uint8_t {
+    kDataTypeUnknown = 0,
+    kDataTypeFp32 = 1,
+    kDataTypeInt8 = 2,
+    kDataTypeInt32 = 3,
 };
 
 }
