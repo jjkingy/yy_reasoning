@@ -51,7 +51,33 @@ public:
 
     void* allocate(size_t byte_size) const override;
     void release(void* ptr) const override;
-}
+};
+
+
+// class CPUDeviceAllocatorFactory {
+// public:
+//     static std::shared_ptr<CPUDeviceAllocator> get_instance() {
+//         static auto instance = std::make_shared<CPUDeviceAllocator>();
+//         return instance;
+//     }
+// };
+
+// class CUDADeviceAllocatorFactory {
+// public:
+//     static std::shared_ptr<CUDADeviceAllocator> get_instance() {
+//         static auto instance = std::make_shared<CUDADeviceAllocator>();
+//         return instance;
+//     }
+// };
+//使用模板代替上面写法
+template<typename Alloc>
+class AllocatorFactory {
+public:
+    static std::shared_ptr<Alloc> get_instance() {
+        static auto instance = std::make_shared<Alloc>();
+        return instance;
+    }
+};
 
 
 }   //namespace base
