@@ -28,7 +28,28 @@ public:
     base::DataType data_type() const;
     LayerType layer_type() const;
 
-    const std::string& get_layer_name() const;
+    virtual void set_input(int32_t, const tensor::Tensor& input) = 0;
+    virtual void set_output(int32_t, const tensor::Tensor& output) = 0;
+
+    //既能安全地“只读”访问成员，也能在需要时“可写”地修改成员。
+    virtual const tensor::Tensor& get_input(int32_t input) const = 0;
+    virtual const tensor::Tensor& get_output(int32_t output) const = 0;
+    virtual tensor::Tensor& get_output(int32_t output) = 0;
+    virtual tensor::Tensor& get_input(int32_t input) = 0;
+
+    virtual size_t input_size() const = 0;
+    virtual size_t output_size() const = 0;
+
+    virtual base::Status check() const = 0;
+
+    virtual base::Status set_weight(int32_t idx, const tensor::Tensor& weight); //使用封装好的张量设置权重
+    virtual base::Status set_weight(int32_t idx, const std::vector<int32_t>& dims,
+                                    const void* weight_ptr, 
+                                    base::DeviceType device_type = base::DeviceType::kDeviceUnknown);  //使用原始数据指针和维度设置权重
+                                    const std::string& get_layer_name() const;
+
+
+
     void set_layer_name(const std::string& layer_name);
 
     base::DeviceType device_type() const;

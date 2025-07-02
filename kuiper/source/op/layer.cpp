@@ -13,6 +13,15 @@ base::DataType BaseLayer::data_type() const { return _data_type; }
 
 LayerType BaseLayer::layer_type() const { return _layer_type; }
 
+base::Status BaseLayer::set_weight(int32_t idx, const tensor::Tensor& weight) {
+  return base::error::FunctionNotImplement();
+}
+
+base::Status BaseLayer::set_weight(int32_t idx, const std::vector<int32_t>& dims,
+                                   const void* weight_ptr, base::DeviceType device_type) {
+  return base::error::FunctionNotImplement();
+}
+
 const std::string& BaseLayer::get_layer_name() const {return _layer_name;}
 
 void BaseLayer::set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
@@ -20,6 +29,7 @@ void BaseLayer::set_layer_name(const std::string& layer_name) { _layer_name = la
 base::DeviceType BaseLayer::device_type() const { return _device_type;}
 
 void BaseLayer::set_device_type(base::DeviceType device_type) { _device_name = device_type; }
+
 
 
 void Layer::set_input(int32_t idx, const tensor::Tensor& input) {
