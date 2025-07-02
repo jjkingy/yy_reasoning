@@ -32,6 +32,7 @@ enum class DataType : uint8_t {
 enum class StatusCode : uint8_t {
     kSuccess = 0.
     kFunctionUnImplement = 1,
+    kInvalidArgument = 7,
 };
 
 //status封装错误信息
@@ -63,6 +64,15 @@ private:
     std::string _message;
     int _code = StatusCode::kSuccess;
 };
+
+namespace error {
+Status Success(const std::string& err_msg = "");
+
+Status FunctionNotImplement(const std::string& err_msg = "");
+
+Status InvalidArgument(const std::string& err_msg = "");
+
+}   //namespace error
 
 }   //namespace base
 
