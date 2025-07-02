@@ -46,10 +46,9 @@ public:
     virtual base::Status set_weight(int32_t idx, const std::vector<int32_t>& dims,
                                     const void* weight_ptr, 
                                     base::DeviceType device_type = base::DeviceType::kDeviceUnknown);  //使用原始数据指针和维度设置权重
-                                    const std::string& get_layer_name() const;
-
-
-
+                                  
+                                    
+    const std::string& get_layer_name() const;
     void set_layer_name(const std::string& layer_name);
 
     base::DeviceType device_type() const;
