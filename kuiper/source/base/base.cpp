@@ -42,4 +42,20 @@ void Status::set_err_msg(const std::string& err_msg) {
 }
 
 
+namespace error {
+//使用{}统一初始化列表
+Status Success(const std::string& err_msg = "") {
+    return Status{StatusCode::kSuccess, err_msg};
+}
+
+Status FunctionNotImplement(const std::string& err_msg = "") {
+    return Status{StatusCode::kFunctionUnImplement, err_msg};
+}
+
+Status InvalidArgument(const std::string& err_msg = ""){
+    return Status{StatusCode::kInvalidArgument, err_msg};
+}
+
+}   //namespace error
+
 }   //namespace base
