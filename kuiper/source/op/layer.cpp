@@ -1,8 +1,10 @@
 #include "op/layer.h"
 #include <glog/logging.h>
+#include <cstdarg>
 
 
 namespace op {
+//BaseLayer
 BaseLayer::BaseLayer(base::DeviceType device_type, LayerType layer_type, base::DataType data_type, std::string layer_name)
     :_device_type(device_type),
     _layer_type(layer_type),
@@ -30,7 +32,60 @@ base::DeviceType BaseLayer::device_type() const { return _device_type;}
 
 void BaseLayer::set_device_type(base::DeviceType device_type) { _device_name = device_type; }
 
+///Layer
+Layer::Layer(base::DeviceType device_type, LayerType layer_type, std::string layer_name)
+    : BaseLayer(device_type, layer_type, base::DataType::kDataTypeFp32, std::move(layer_name)) {}
 
+base::Status Layer::init() { return base::error::Success(); }
+
+base::Status Layer::check_tensor(const tensor::Tensor& tensor, base::DeviceType device_type, base::DataType data_type) const {
+    if(tensor.is_empty()) {
+        return base::error::InvalidArgument("The tensor Parameter is empty.");
+    }
+    if(tensor.device_type() != device_type) {
+        return base::error::InvalidArgument("The tensor has wrong device type");
+    }
+    if(tensor.data_type() != data_type) {
+        return base::error::InvalidArgument("The data type is wrong");
+    }
+    return base::error::Success();
+}
+
+base::Status Layer::check_tensor_with_dim(const tensor::Tensor& tensor, base::DeviceType device_type, 
+                                        base::DataType data_type, ...) const {
+    va_list args;
+
+    if(tensor.is_empty()) {
+        return base::error::InvalidArgument("The tensor Parameter is empty.");
+    }
+    if(tensor.device_type() != device_type) {
+        return base::error::InvalidArgument("The tensor has wrong device type");
+    }
+    if(tensor.data_type() != data_type) {
+        return base::error::InvalidArgument("The data type is wrong");
+    }
+
+    va_start(args, data_type);
+    int32_t ndim = tensor.dims_size();
+    for(auto i = 0; i < ndim; i++) {
+        int32_t dim = va_arg(args, int32_t);
+        if(dim != tensor.get_dim(i)) {
+            va_end(args);
+            return base::error::InvalidArgument("The tensor has wrong dim in dim" + std::to_string(i));
+        }
+    }
+    
+    va_end(args);
+    return base::error::Success();
+}
+
+base::Status Layer::check() {
+    return base::error::FunctionNotImplement("The check function is not implent yet");
+}
+
+base::Status Layer::forward() {
+    return base::error::FunctionNotImplement("");
+}
 
 void Layer::set_input(int32_t idx, const tensor::Tensor& input) {
     CHECK_GE(idx, 0);           // 检查 idx >= 0，防止负下标
@@ -51,7 +106,19 @@ const tensor::Tensor& Layer::get_input(int32_t idx) const {
     return _inputs.at(idx);
 }
 
-const tensor::Tensor& Layer::get_output(int32_t idx) {
+tensor::Tensor& Layer::get_input(int32_t idx) {
+    CHECK_GE(idx, 0);
+    CHECK_LT(idx, _inputs.size());
+    return _inputs.at(idx);
+}
+
+tensor::Tensor& Layer::get_output(int32_t idx) {
+    CHECK_GE(idx, 0);
+    CHECK_LT(idx, _outputs.size());
+    return _outputs.at(idx);
+}
+
+const tensor::Tensor& Layer::get_output(int32_t idx) const {
     CHECK_GE(idx, 0);
     CHECK_LT(idx, _outputs.size());
     return _outputs.at(idx);

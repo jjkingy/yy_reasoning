@@ -28,14 +28,19 @@ public:
     base::DataType data_type() const;
     LayerType layer_type() const;
 
-    virtual void set_input(int32_t, const tensor::Tensor& input) = 0;
-    virtual void set_output(int32_t, const tensor::Tensor& output) = 0;
+    virtual base::Status init() = 0;
+    virtual base::Status forward() = 0;
+    virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& output1) = 0;
+
+
+    virtual void set_input(int32_t idx, const tensor::Tensor& input) = 0;
+    virtual void set_output(int32_t idx, const tensor::Tensor& output) = 0;
 
     //既能安全地“只读”访问成员，也能在需要时“可写”地修改成员。
-    virtual const tensor::Tensor& get_input(int32_t input) const = 0;
-    virtual const tensor::Tensor& get_output(int32_t output) const = 0;
-    virtual tensor::Tensor& get_output(int32_t output) = 0;
-    virtual tensor::Tensor& get_input(int32_t input) = 0;
+    virtual const tensor::Tensor& get_input(int32_t idx) const = 0;
+    virtual const tensor::Tensor& get_output(int32_t idx) const = 0;
+    virtual tensor::Tensor& get_output(int32_t idx) = 0;
+    virtual tensor::Tensor& get_input(int32_t idx) = 0;
 
     virtual size_t input_size() const = 0;
     virtual size_t output_size() const = 0;
@@ -67,13 +72,24 @@ class Layer : public BaseLayer {
 public:
     explicit Layer(base::DeviceType device_type, LayerType layer_type, std::string layer_name = "")
 
+    base::Status init() override;
+    base::Status check_tensor(const tensor::Tensor& tensor, base::DeviceType device_type, base::DataType data_type) const;
+    base::Status check_tensor_with_dim(const tensor::Tensor& tensor, base::DeviceType device_type, base::DataType data_type, ...) const;
+    base::Status check() override;
+
+    base::Status forward() override;
+    // base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& output1) override;
+
+
     //传入输入输出
     void set_input(int32_t idx, const tensor::Tensor& input) override;
     void set_output(int32_t idx, const tensor::Tensor& output) override;
     
     //获取输入输出
-    const tensor::Tensor& get_input(int32_t input) const override;
-    const tensor::Tensor& get_output(int32_t output) const override;
+    const tensor::Tensor& get_input(int32_t idx) const override;
+    const tensor::Tensor& get_output(int32_t idx) const override;
+    tensor::Tensor& get_input(int32_t idx) override;
+    tensor::Tensor& get_output(int32_t idx) override;
 
     //获取输入输出大小
     size_t input_size() const override;
