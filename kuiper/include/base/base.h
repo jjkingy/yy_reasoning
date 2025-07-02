@@ -65,6 +65,11 @@ private:
     int _code = StatusCode::kSuccess;
 };
 
+
+/*
+namespace error 的作用是为常见的错误类型提供统一、易用的工厂函数
+集中管理所有常见错误类型，方便维护和拓展
+*/
 namespace error {
 Status Success(const std::string& err_msg = "");
 
