@@ -1,6 +1,7 @@
 #include "op/layer.h"
 #include <glog/logging.h>
 #include <cstdarg>
+#include "tensor/tensor.h"
 
 
 namespace op {
@@ -132,6 +133,55 @@ void Layer::reset_input_size(size_t size) { _inputs.resize(size); }
 
 void Layer::reset_output_size(size_t size) { _outputs.resize(size); }
 
+base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& output1) {
+    this->set_input(0, input1);
+    this->set_output(0, output1);
+    return this->forward();
+}
+
+base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                            const tensor::Tensor& output1) {
+    this->set_input(0, input1);
+    this->set_input(1, input2);
+
+    this->set_output(0, output1);
+    return this->forward();
+}
+
+base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                            const tensor::Tensor& input3, const tensor::Tensor& output1) {
+    this->set_input(0, input1);
+    this->set_input(1, input2);
+    this->set_input(2, input3);
+
+    this->set_output(0, output1);
+    return this->forward();
+}
+
+base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                            const tensor::Tensor& input3, const tensor::Tensor& input4,
+                            const tensor::Tensor& output1) {
+    this->set_input(0, input1);
+    this->set_input(1, input2);
+    this->set_input(2, input3);
+    this->set_input(3, input4);
+
+    this->set_output(0, output1);
+    return this->forward();
+}
+
+base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                            const tensor::Tensor& input3, const tensor::Tensor& input4,
+                            const tensor::Tensor& input5, const tensor::Tensor& output1) {
+    this->set_input(0, input1);
+    this->set_input(1, input2);
+    this->set_input(2, input3);
+    this->set_input(3, input4);
+    this->set_input(4, input5);
+
+    this->set_output(0, output1);
+    return this->forward();
+}
 
 
 }   //namespace op
