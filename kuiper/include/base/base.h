@@ -28,9 +28,9 @@ enum class DataType : uint8_t {
     kDataTypeInt32 = 3,
 };
 
-//错误枚举码
-enum class StatusCode : uint8_t {
-    kSuccess = 0.
+//错误枚举码 不使用enum class, 允许后面的隐式转换
+enum StatusCode : uint8_t {
+    kSuccess = 0,
     kFunctionUnImplement = 1,
     kInvalidArgument = 7,
 };
