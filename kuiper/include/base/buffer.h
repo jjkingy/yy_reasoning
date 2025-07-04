@@ -13,6 +13,9 @@ public:
 
     bool allocate();
 
+    void* ptr();
+    const void* ptr() const;
+
 private:
     size_t _byte_size = 0;
     void* ptr = nullptr;

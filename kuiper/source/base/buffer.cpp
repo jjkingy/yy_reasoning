@@ -48,6 +48,13 @@ bool Buffer::allocate() {
     }
 }
 
+void* Buffer::ptr() {
+    return _ptr;
+}
+
+const void* Buffer::ptr() const {
+    return _ptr;
+}
 
 
 } //namespace base
