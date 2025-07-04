@@ -188,15 +188,15 @@ base::Status Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& 
 LayerParam::LayerParam(base::DeviceType device_type, LayerType layer_type, std::string layer_name="")
     :Layer(device_type, layer_type, std::move(layer_name)) {}
    
-size_t LayerParam::weights_size() const {
+size_t LayerParam::weight_size() const {
     return _weights.size();
 }
 
-void LayerParam::reset_weight_size(size_t size) const {
+void LayerParam::reset_weight_size(size_t size) {
     _weights.resize(size);
 }
 
-tensor::Tensor& LayerParam::get_weight(int32_t idx) const {
+tensor::Tensor& LayerParam::get_weight(int32_t idx) {
     CHECK_GE(idx, 0);
     CHECK_LT(idx, weights_.size());
     return _weights.at(idx);

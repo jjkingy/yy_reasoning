@@ -136,12 +136,12 @@ class LayerParam : public Layer {
 public:
     explicit LayerParam(base::DeviceType device_type, LayerType layer_type, std::string layer_name="");
 
-    size_t weights_size() const;
+    size_t weight_size() const;
 
-    void reset_weight_size(size_t size) const;
+    void reset_weight_size(size_t size);
     
     tensor::Tensor& get_weight(int32_t idx);
-    const tensor::Tensor& get_weight(int32_t idx);
+    const tensor::Tensor& get_weight(int32_t idx) const;
 
     base::Status set_weight(int32_t idx, const tensor::Tensor& weight) override;
     base::Status set_weight(int32_t idx, std::vector<int32_t>& dims, const void* weight_ptr,
