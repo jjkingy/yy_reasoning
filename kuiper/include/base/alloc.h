@@ -73,6 +73,7 @@ public:
 template<typename Alloc>
 class AllocatorFactory {
 public:
+    //使用C++11局部静态变量保证线程安全
     static std::shared_ptr<Alloc> get_instance() {
         static auto instance = std::make_shared<Alloc>();
         return instance;
