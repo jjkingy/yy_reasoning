@@ -127,9 +127,29 @@ public:
 
     virtual void to_cuda();
 
-private:
+protected:
     std::vector<tensor::Tensor> _inputs;  // 存放输入的数组
     std::vector<tensor::Tensor> _outputs; // 存放输出的数组
+};
+
+class LayerParam : public Layer {
+public:
+    explicit LayerParam(base::DeviceType device_type, LayerType layer_type, std::string layer_name="");
+
+    size_t weights_size() const;
+
+    void reset_weight_size(size_t size) const;
+    
+    tensor::Tensor& get_weight(int32_t idx);
+    const tensor::Tensor& get_weight(int32_t idx);
+
+    base::Status set_weight(int32_t idx, const tensor::Tensor& weight) override;
+    base::Status set_weight(int32_t idx, std::vector<int32_t>& dims, const void* weight_ptr,
+                            base::DeviceType device_type = base::DeviceType::kDeviceUnknown) override;
+
+
+private:
+    std::vector<tensor::Tensor> _weights;   //用于存放额外的权重
 };
 
 }   //namespace op
