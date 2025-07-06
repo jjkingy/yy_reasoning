@@ -22,7 +22,8 @@ static size_t data_type_size(base::DataType data_type) {
 
 
 Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc = false,
-                std::shared_ptr<base::DeviceAllocator> alloc, void* ptr) {
+                std::shared_ptr<base::DeviceAllocator> alloc, void* ptr) 
+                :_data_type = _data_type {
         _dims.emplace_back(dim0);
         _size = dim0;  
         if(need_alloc && alloc) {   //需要分配并且有分配器
@@ -31,7 +32,7 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc = false,
             if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
                 CHECK(need_alloc == false)
                     << "The need_alloc is ture when ptr is not nullptr."; 
-                init_buffer(alloc, data_type, need_alloc, ptr);
+                init_buffer(alloc, _data_type, need_alloc, ptr);
             }
         }
 }
