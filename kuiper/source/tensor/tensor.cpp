@@ -23,44 +23,93 @@ static size_t data_type_size(base::DataType data_type) {
 
 Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc = false,
                 std::shared_ptr<base::DeviceAllocator> alloc, void* ptr) 
-                :_data_type = _data_type {
-        _dims.emplace_back(dim0);
-        _size = dim0;  
-        if(need_alloc && alloc) {   //需要分配并且有分配器
-            allocate(alloc);
-        } else {    //不需要分配，使用外部传入得内存
-            if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
-                CHECK(need_alloc == false)
-                    << "The need_alloc is ture when ptr is not nullptr."; 
-                init_buffer(alloc, _data_type, need_alloc, ptr);
-            }
+                :_data_type(data_type) {
+    _dims.emplace_back(dim0);
+    _size = dim0;  
+    if(need_alloc && alloc) {   //需要分配并且有分配器
+        allocate(alloc);
+    } else {    //不需要分配，使用外部传入得内存
+        if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
+            CHECK(need_alloc == false)
+                << "The need_alloc is ture when ptr is not nullptr."; 
+            init_buffer(alloc, _data_type, need_alloc, ptr);
         }
+    }
 }
 
-// ///未实现
-// Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, bool need_alloc = false,
-//                 std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr) {
 
-// }
+Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, bool need_alloc = false,
+                std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr)
+                :_data_type(data_type) {
+    _dims.emplace_back(dim0);
+    _dims.emplace_back(dim1);
+    _size = dim0 * dim1;  
+    if(need_alloc && alloc) {   //需要分配并且有分配器
+        allocate(alloc);
+    } else {    //不需要分配，使用外部传入得内存
+        if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
+            CHECK(need_alloc == false)
+                << "The need_alloc is ture when ptr is not nullptr."; 
+            init_buffer(alloc, _data_type, need_alloc, ptr);
+        }
+    }
 
-// Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2,
-//                 bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
-//                 void* ptr = nullptr) {
+}
 
-// }
+Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2,
+                bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
+                void* ptr = nullptr)
+                :_data_type(data_type) {
+    _dims.emplace_back(dim0);
+    _dims.emplace_back(dim1);
+    _dims.emplace_back(dim2);
+    _size = dim0 * dim1 * dim2; 
+    if(need_alloc && alloc) {   //需要分配并且有分配器
+        allocate(alloc);
+    } else {    //不需要分配，使用外部传入得内存
+        if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
+            CHECK(need_alloc == false)
+                << "The need_alloc is ture when ptr is not nullptr."; 
+            init_buffer(alloc, _data_type, need_alloc, ptr);
+        }
+    }
+}
 
-// Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2, int32_t dim3,
-//                 bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
-//                 void* ptr = nullptr) {
-            
-// }
+Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2, int32_t dim3,
+                bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
+                void* ptr = nullptr)
+                :_data_type(data_type) {
+    _dims.emplace_back(dim0);
+    _dims.emplace_back(dim1);
+    _dims.emplace_back(dim2);
+    _dims.emplace_back(dim3);
+    _size = dim0 * dim1 * dim2 * dim3;
+    if(need_alloc && alloc) {   //需要分配并且有分配器
+        allocate(alloc);
+    } else {    //不需要分配，使用外部传入得内存
+        if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
+            CHECK(need_alloc == false)
+                << "The need_alloc is ture when ptr is not nullptr."; 
+            init_buffer(alloc, _data_type, need_alloc, ptr);
+        }
+    }        
+}
 
-// Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc = false,
-//                 std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr) {
+Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc = false,
+                std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr)
+                :_data_type(data_type), _dims(std::move(dims)) {
+    _size = std::accumulate(_dims.begin(), _dims.end(), 1, std::multiplies<int32_t>());
+    if(need_alloc && alloc) {   //需要分配并且有分配器
+        allocate(alloc);
+    } else {    //不需要分配，使用外部传入得内存
+        if(ptr != nullptr) {    //外部传入ptr不空且need_alloc必须为false
+            CHECK(need_alloc == false)
+                << "The need_alloc is ture when ptr is not nullptr."; 
+            init_buffer(alloc, _data_type, need_alloc, ptr);
+        }
+    }
+}
 
-// }
-
-///上面没写完
 
 bool Tensor::is_empty() const {
     return _buffer == nullptr || _size == 0 || _buffer->ptr() == nullptr;
