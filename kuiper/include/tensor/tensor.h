@@ -35,6 +35,8 @@ public:
 
     bool allocate(std::shared_ptr<base::DeviceAllocator> allocator, bool need_realloc);
 
+    int32_t dims_size() const;
+
     //对数据张量访问
     template<typename T>
     T* ptr();

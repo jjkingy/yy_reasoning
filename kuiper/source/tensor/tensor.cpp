@@ -170,4 +170,6 @@ bool Tensor::allocate(std::shared_ptr<base::DeviceAllocator> allocator, bool nee
     return true;
 }
 
+int32_t Tensor::dims_size() const { return static_cast<int32_t>(_dims.size()); }
+
 }   //namespace tensor
