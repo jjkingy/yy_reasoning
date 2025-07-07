@@ -2,6 +2,9 @@
 #include "base/base.h"
 #include <string>
 #include <vector>
+#include "tensor/tensor.h"
+#include <base/cuda_config.h>
+
 
 namespace op {
 
