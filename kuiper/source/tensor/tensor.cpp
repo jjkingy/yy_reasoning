@@ -122,6 +122,10 @@ int32_t Tensor::get_dim(int32_t idx) const {
     return this->_dims.at(idx);
 }
 
+size_t Tensor::size() const {
+    return this->_size;
+}
+
 std::vector<size_t> Tensor::strides() const {
     std::vector<size_t> strides;
     if(!_dims.empty()) {

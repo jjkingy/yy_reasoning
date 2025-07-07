@@ -50,6 +50,8 @@ public:
     template<typename T>
     const T* ptr(int64_t index) const;
 
+    size_t size() const;
+
     int32_t get_dim(int32_t idx) const;
 
     std::vector<size_t> strides() const;
