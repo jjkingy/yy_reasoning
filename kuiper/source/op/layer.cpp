@@ -1,7 +1,9 @@
 #include "op/layer.h"
+#include <base/cuda_config.h>
 #include <glog/logging.h>
 #include <cstdarg>
-#include "tensor/tensor.h"
+#include <numeric>
+#include <utility>
 
 
 namespace op {
@@ -288,6 +290,21 @@ base::Status LayerParam::set_weight(int32_t idx, std::vector<int32_t>& dims,
     }
 
     return base::error::Success();
+}
+
+void LayerParam::set_scales(const tensor::Tensor& scales) {
+    CHECK(!scales.is_empty());
+    this->_scales = scales;
+}
+
+void LayerParam::set_group_size(int32_t group_size) {
+    this->_group_size = group_size;
+}
+
+int32_t LayerParam::get_scale_num() const {
+    CHECK(!_scales.is_empty()) {
+        return static_cast<int32_t>(_scales.size());
+    }
 }
 
 void LayerParam::to_cuda() {

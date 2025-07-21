@@ -157,12 +157,18 @@ public:
     base::Status set_weight(int32_t idx, std::vector<int32_t>& dims, const void* weight_ptr,
                             base::DeviceType device_type = base::DeviceType::kDeviceUnknown) override;
 
+    void set_scales(const tensor::Tensor& scales);
 
-private:
+    void set_group_size(int32_t group_size);
+
+    int32_t get_scale_num() const;
+
+
+protected:
     std::vector<tensor::Tensor> _weights;   //用于存放额外的权重
-    tensor::Tensor _scales;
-    int32_t group_size = 0;
-    bool _is_quant_layer;
+    tensor::Tensor _scales; //存缩放因子
+    int32_t _group_size = 0;
+    bool _is_quant_layer = false;
 };
 
 }   //namespace op
