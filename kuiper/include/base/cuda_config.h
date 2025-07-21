@@ -7,7 +7,7 @@ struct CudaConfig {
     cudaStream_t stream = nullptr;
     ~CudaConfig() {
         if(stream) {
-            cudaStreamDestory(stream)；
+            cudaStreamDestory(stream);
         }
     }
 };
