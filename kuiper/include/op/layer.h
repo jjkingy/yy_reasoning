@@ -130,9 +130,14 @@ public:
 
     virtual void to_cuda();
 
+    void set_cuda_config(std::shared_ptr<kernel::CudaConfig> config);
+
+    std::shared_ptr<kernel::CudaConfig> cuda_config() const;
+
 protected:
     std::vector<tensor::Tensor> _inputs;  // 存放输入的数组
     std::vector<tensor::Tensor> _outputs; // 存放输出的数组
+    std::shared_ptr<kernel::CudaConfig> _cuda_config;    //RAII管理CUDA流
 };
 
 class LayerParam : public Layer {
@@ -146,6 +151,8 @@ public:
     tensor::Tensor& get_weight(int32_t idx);
     const tensor::Tensor& get_weight(int32_t idx) const;
 
+    void to_cuda() override;
+
     base::Status set_weight(int32_t idx, const tensor::Tensor& weight) override;
     base::Status set_weight(int32_t idx, std::vector<int32_t>& dims, const void* weight_ptr,
                             base::DeviceType device_type = base::DeviceType::kDeviceUnknown) override;
@@ -153,6 +160,9 @@ public:
 
 private:
     std::vector<tensor::Tensor> _weights;   //用于存放额外的权重
+    tensor::Tensor _scales;
+    int32_t group_size = 0;
+    bool _is_quant_layer;
 };
 
 }   //namespace op
