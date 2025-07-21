@@ -90,6 +90,10 @@ Status FunctionNotImplement(const std::string& err_msg = "");
 
 Status InvalidArgument(const std::string& err_msg = "");
 
+Status PathNotValid(const std::string& err_msg = "");
+
+Status ModelParseError(const std::string& err_msg = "");
+
 }   //namespace error
 
 }   //namespace base
