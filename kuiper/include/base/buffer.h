@@ -16,6 +16,12 @@ public:
     void* ptr();
     const void* ptr() const;
 
+    DeviceType device_type();
+
+    size_t byte_size() const;
+
+    void set_device_type(DeviceType device_type);
+
 private:
     size_t _byte_size = 0;
     void* ptr = nullptr;

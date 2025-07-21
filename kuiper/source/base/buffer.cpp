@@ -48,6 +48,14 @@ bool Buffer::allocate() {
     }
 }
 
+DeviceType Buffer::device_type() {
+    return _device_type;
+}
+
+size_t Buffer::byte_size() const {
+    return this->_byte_size;
+}
+
 void* Buffer::ptr() {
     return _ptr;
 }
@@ -56,5 +64,8 @@ const void* Buffer::ptr() const {
     return _ptr;
 }
 
+void Buffer::set_device_type(DeviceType device_type) {
+    this->_device_type = device_type;
+}
 
 } //namespace base
