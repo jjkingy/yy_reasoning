@@ -37,6 +37,12 @@ public:
 
     int32_t dims_size() const;
 
+    bool assign(std::shared_ptr<base::Buffer> buffer);
+
+    size_t byte_size() const;
+
+    void set_device_type(base::DeviceType device_type) const;
+
     //对数据张量访问
     template<typename T>
     T* ptr();

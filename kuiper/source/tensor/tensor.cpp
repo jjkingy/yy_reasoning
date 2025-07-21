@@ -1,4 +1,4 @@
-include "tensor/tensor.h"
+#include "tensor/tensor.h"
 #include <cuda_device_runtime_api.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
@@ -21,7 +21,7 @@ static size_t data_type_size(base::DataType data_type) {
 }
 
 
-Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc = false,
+Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc,
                 std::shared_ptr<base::DeviceAllocator> alloc, void* ptr) 
                 :_data_type(data_type) {
     _dims.emplace_back(dim0);
@@ -38,8 +38,8 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, bool need_alloc = false,
 }
 
 
-Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, bool need_alloc = false,
-                std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr)
+Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, bool need_alloc,
+                std::shared_ptr<base::DeviceAllocator> alloc, void* ptr)
                 :_data_type(data_type) {
     _dims.emplace_back(dim0);
     _dims.emplace_back(dim1);
@@ -57,8 +57,7 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, bool need_a
 }
 
 Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2,
-                bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
-                void* ptr = nullptr)
+                bool need_alloc, std::shared_ptr<base::DeviceAllocator> alloc, void* ptr)
                 :_data_type(data_type) {
     _dims.emplace_back(dim0);
     _dims.emplace_back(dim1);
@@ -76,8 +75,7 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim
 }
 
 Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim2, int32_t dim3,
-                bool need_alloc = false, std::shared_ptr<base::DeviceAllocator> alloc = nullptr,
-                void* ptr = nullptr)
+                bool need_alloc, std::shared_ptr<base::DeviceAllocator> alloc, void* ptr)
                 :_data_type(data_type) {
     _dims.emplace_back(dim0);
     _dims.emplace_back(dim1);
@@ -95,8 +93,8 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim
     }        
 }
 
-Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc = false,
-                std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr)
+Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc,
+                std::shared_ptr<base::DeviceAllocator> alloc, void* ptr)
                 :_data_type(data_type), _dims(std::move(dims)) {
     _size = std::accumulate(_dims.begin(), _dims.end(), 1, std::multiplies<int32_t>());
     if(need_alloc && alloc) {   //需要分配并且有分配器
@@ -108,6 +106,37 @@ Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_al
             init_buffer(alloc, _data_type, need_alloc, ptr);
         }
     }
+}
+
+
+bool Tensor::assign(std::shared_ptr<base::Buffer> buffer) {
+    if(!buffer) {
+        LOG(ERROR) << "The buffer parameters in assign is null";
+        return false;
+    }
+    if(_buffer) {
+        if(_buffer->device_type() != buffer->device_type()) {
+            LOG(ERROR) << "The device type of new buffer is different from origial one";
+            return false;
+        }
+    }
+    size_t byte_size = this->byte_size();
+    if(byte_size > buffer->byte_size()) {
+        LOG(ERROR) << "The size of buffer is too small for the tensor!";
+        return false;
+    }
+    _buffer = buffer;
+    return true;
+}
+
+void Tensor::set_device_type(base::DeviceType device_type) const {
+    if(_buffer) {
+        _buffer->set_device_type(device_type);
+    }
+}
+
+size_t Tensor::byte_size() const {
+    return this->size() * base::DataTypeSize(_data_type);
 }
 
 
