@@ -90,6 +90,7 @@ base::Status Model::read_model_file() {
 }
 
 base::Status Model::generate_model_infos(const ModelConfig& config) const {
+    using namespace base;
     _config->_dim = config.dim;
     _config->_hidden_dim = config.hidden_dim;
     _config->_layer_num = config.layer_num;
@@ -117,4 +118,31 @@ base::Status Model::generate_model_infos(const ModelConfig& config) const {
     return base::error::Success();
 }
     
+base::Status Model::gen_model_from_file() {
+
+    _config = std::make_unique<TransformerConfig>();
+
+    //init sentence piece processor
+    auto create_encode_status = create_encode_layer();  //create_encode_layers还没实现
+    if(!create_encode_status) {
+        LOG(ERROR) << "Create the encode layer failed!";
+        return create_encode_status;
+    }
+
+    //mmap 读模型文件
+    auto mmap_status = read_model_file();
+    if(!mmap_status) {
+        LOG(ERROR) << "Handle model file " << _model_path << " failed!";
+        return mmap_status;
+    }
+    //创建layers
+    auto layer_create_status = create_layers();
+    if(!layer_create_status) {
+        LOG(ERROR) << "Create layers for the model file " << _model_path << " failed!";
+        return layer_create_status;
+    }
+
+    return error::Success();
+}
+
 }

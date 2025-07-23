@@ -108,6 +108,48 @@ Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_al
     }
 }
 
+void Tensor::to_cuda(cudaStream_t stream) {
+    //检查buffer是否为空
+    CHECK_NE(_buffer, nullptr);
+    //检查设备类型并做处理
+    //公有方法通过接口获取私有属性， 不要直接访问私有属性
+    const base::DeviceType device_type = this->device_type();
+    if(device_type == base::DeviceType::kDeviceUnknown) {
+        LOG(ERROR) << "The device type of the tensor is unknown.";
+    } else if(device_type == base::DeviceType::kDeviceCPU) {
+        size_t byte_size = this->byte_size();
+        auto cu_alloc = base::AllocatorFactory<base::CUDADeviceAllocator>::get_instance();
+        auto cu_buffer = std::make_shared<base::Buffer>(byte_size, cu_alloc);
+        //从cpu复制到gpu
+        cu_alloc->memcpy(_buffer->ptr(), cu_buffer->ptr(), byte_size, base::MemcpyKind::kMemcpyCPU2CUDA,
+                        stream)
+        this->_buffer = cu_buffer;
+    } else {
+        LOG(INFO) << "The device of the tensor is already in cuda.";
+    }
+    
+}
+
+void Tensor::to_cpu() {
+    //检查buffer是否为空
+    CHECK_NE(_buffer, nullptr);
+    //检查设备类型并做处理
+    //公有方法通过接口获取私有属性， 不要直接访问私有属性
+    const base::DeviceType device_type = this->device_type();
+    if(device_type == base::DeviceType::kDeviceUnknown) {
+        LOG(ERROR) << "The device type of the tensor is unknown.";
+    } else if(device_type == base::DeviceType::kDeviceCUDA) {
+        size_t byte_size = this->byte_size();
+        auto cpu_alloc = base::AllocatorFactory<base::CPUDeviceAllocator>::get_instance();
+        auto cpu_buffer = std::make_shared<base::Buffer>(byte_size, cpu_alloc);
+        //从cpu复制到gpu
+        cu_alloc->memcpy(_buffer->ptr(), cpu_buffer->ptr(), byte_size, base::MemcpyKind::kMemcpyCUDA2CPU);
+        this->_buffer = cpu_buffer;
+    } else {
+        LOG(INFO) << "The device of the tensor is already in cpu.";
+    }
+}
+
 
 bool Tensor::assign(std::shared_ptr<base::Buffer> buffer) {
     if(!buffer) {
@@ -153,6 +195,12 @@ int32_t Tensor::get_dim(int32_t idx) const {
 
 size_t Tensor::size() const {
     return this->_size;
+}
+
+size_t Tensor::byte_size() const { return this->size() * DataTypeSize(_data_type);}
+
+base::DeviceType Tensor::device_type() const {
+    return this->_device_type;
 }
 
 std::vector<size_t> Tensor::strides() const {

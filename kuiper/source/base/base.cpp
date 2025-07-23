@@ -43,19 +43,38 @@ void Status::set_err_msg(const std::string& err_msg) {
 
 
 namespace error {
-//使用{}统一初始化列表
-Status Success(const std::string& err_msg = "") {
-    return Status{StatusCode::kSuccess, err_msg};
+Status Success(const std::string& err_msg) { return Status{kSuccess, err_msg}; }
+
+Status FunctionNotImplement(const std::string& err_msg) {
+  return Status{kFunctionUnImplement, err_msg};
 }
 
-Status FunctionNotImplement(const std::string& err_msg = "") {
-    return Status{StatusCode::kFunctionUnImplement, err_msg};
+Status PathNotValid(const std::string& err_msg) {
+  return Status{kPathNotValid, err_msg};
 }
 
-Status InvalidArgument(const std::string& err_msg = ""){
-    return Status{StatusCode::kInvalidArgument, err_msg};
+Status ModelParseError(const std::string& err_msg) {
+  return Status{kModelParseError, err_msg};
 }
 
-}   //namespace error
+Status InternalError(const std::string& err_msg) {
+  return Status{kInternalError, err_msg};
+}
+
+Status InvalidArgument(const std::string& err_msg) {
+  return Status{kInvalidArgument, err_msg};
+}
+
+Status KeyHasExits(const std::string& err_msg) {
+  return Status{kKeyValueHasExist, err_msg};
+}
+
+//重载运算符<<
+std::ostream& operator<<(std::ostream& os, const Status& x) {
+    os << x.get_err_msg();
+    return os;
+}
+
+}  // namespace error
 
 }   //namespace base

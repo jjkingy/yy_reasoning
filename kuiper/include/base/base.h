@@ -3,7 +3,6 @@
 #include <string>
 #include <glog/logging.h>
 
-
 namespace base {
 enum class DeviceType : uint8_t {
     kDeviceUnknown = 0,
@@ -45,6 +44,10 @@ enum class DataType : uint8_t {
 enum StatusCode : uint8_t {
     kSuccess = 0,
     kFunctionUnImplement = 1,
+    kPathNotValid = 2,
+    kModelParseError = 3,
+    kInternalError = 5,
+    kKeyValueHasExist = 6,
     kInvalidArgument = 7,
 };
 
@@ -88,13 +91,19 @@ Status Success(const std::string& err_msg = "");
 
 Status FunctionNotImplement(const std::string& err_msg = "");
 
-Status InvalidArgument(const std::string& err_msg = "");
-
 Status PathNotValid(const std::string& err_msg = "");
 
 Status ModelParseError(const std::string& err_msg = "");
 
-}   //namespace error
+Status InternalError(const std::string& err_msg = "");
+
+Status KeyHasExits(const std::string& err_msg = "");
+
+Status InvalidArgument(const std::string& err_msg = "");
+
+}  // namespace error
+
+std::ostream& operator<<(std::ostream& os, const Status& x);
 
 }   //namespace base
 

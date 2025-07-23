@@ -24,10 +24,14 @@ public:
 protected:
     virtual base::Status read_model_file();
 
+    virtual base::Status gen_model_from_file();
+
     virtual base::Status generate_model_infos(const ModelConfig& config) const;
 
 private:
     virtual base::Status create_layers() = 0;
+
+    virtual void init_mem() = 0;
 
 protected:
     std::unique_ptr<TransformerConfig> _config; //模型结构配置
@@ -37,7 +41,9 @@ protected:
     std::shared_ptr<RawModelData> _raw_model_data;  //mmap权重封装
     std::string _model_path;
     std::string _token_path;
+    
 
+    base::DeviceType _device_type = base::DeviceType::kDeviceUnknown;
 };
 
 

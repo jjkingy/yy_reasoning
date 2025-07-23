@@ -29,14 +29,21 @@ public:
     explicit Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc = false,
                     std::shared_ptr<base::DeviceAllocator> alloc = nullptr, void* ptr = nullptr);
 
+    void to_cpu();
+
+    void to_cuda(cudaStream_t stream = nullptr);
+
+
     bool is_empty() const;
     
+    //初始化buffer并allocate
     void init_buffer(std::shared_ptr<base::DeviceAllocator> alloc, base::DataType, bool need_alloc, void* ptr);
 
     bool allocate(std::shared_ptr<base::DeviceAllocator> allocator, bool need_realloc);
 
     int32_t dims_size() const;
 
+    //分配一个外部buffer只用buffer 不管数据
     bool assign(std::shared_ptr<base::Buffer> buffer);
 
     size_t byte_size() const;
@@ -61,6 +68,10 @@ public:
     int32_t get_dim(int32_t idx) const;
 
     std::vector<size_t> strides() const;
+
+    base::DeviceType device_type() const;
+
+    size_t byte_size() const;
 
 
 private:
