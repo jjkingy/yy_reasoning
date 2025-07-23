@@ -37,6 +37,7 @@ private:
 
 class CPUDeviceAllocator : public DeviceAllocator {
 public:
+    //explicit只能显示构造，禁止隐形转换
     explicit CPUDeviceAllocator();
 
     void* allocate(size_t byte_size) const override;
