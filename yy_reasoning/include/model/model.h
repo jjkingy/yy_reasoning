@@ -34,9 +34,16 @@ protected:
     virtual base::Status generate_model_infos(const ModelConfig& config) const;
 
 private:
+//必须重写的接口
     virtual base::Status create_layers() = 0;
 
     virtual void init_mem() = 0;
+
+    virtual void create_param_layers() = 0;
+
+    virtual void create_param_quant_layers() = 0;
+
+    virtual void create_nonparam_layers() = 0;
 
 //如果改成 private，子类无法直接访问这些变量，必须提供大量的 get/set 接口。
 //这在框架类设计里通常是反模式，因为这个类的主要用途就是让子类重写、扩展。
@@ -48,8 +55,9 @@ protected:
     std::shared_ptr<RawModelData> _raw_model_data;  //mmap权重封装
     std::string _model_path;
     std::string _token_path;
-
     std::unique_ptr<op::EncodeLayerBase> _encode_layer;
+    std::unique_ptr<Sampler::Sampler> _sampler;
+    std::map<ModelBufferType, tensor::Tensor> _buffers;
     
     base::TokenizerType _tokenizer_type = base::TokenizerType::kTokenizerTypeUnknown;
     base::ModelType _model_type = base::ModelType::kModelTypeUnknown;

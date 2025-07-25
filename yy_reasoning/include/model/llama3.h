@@ -38,8 +38,15 @@ public:
     base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const override;
 
 private:
-    base::Status create_layers() override;
     void init_mem() override;
+
+    base::Status create_layers() override;
+
+    void create_param_layers() override;
+
+    void create_nonparam_layers() override;
+
+    void create_param_quant_layers() override;
 
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;
