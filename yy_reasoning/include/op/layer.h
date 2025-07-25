@@ -37,7 +37,7 @@ public:
     virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& output1) = 0;
     virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
                                const tensor::Tensor& output1) = 0;
-     virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
+    virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
                                const tensor::Tensor& input3, const tensor::Tensor& output1) = 0;
     virtual base::Status forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
                                const tensor::Tensor& input3, const tensor::Tensor& input4,

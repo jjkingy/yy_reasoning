@@ -247,13 +247,15 @@ base::Status LayerParam::set_weight(int32_t idx, const tensor::Tensor& weight) {
     return base::error::Success();
 }
 
-//涉及到量化 未实现
+
 base::Status LayerParam::set_weight(int32_t idx, std::vector<int32_t>& dims, 
                                     const void* weight_ptr, base::DeviceType device_type) {
     CHECK_GE(idx, 0);
     CHECK_LT(idx, _weights.size());
     CHECK_NE(weight_ptr, nullptr);
 
+    //size只是告诉buffer这块内存预计有多大，但是这块内存时weight_ptr传入的，buffer实际不分配和改写内存
+    //float可以理解为按照最大大小告诉buffer,只是标记大了， 实际内存还是用了那么多
     size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(float), std::multiplies<>());
 
     //创建Buffer并设置device_type
