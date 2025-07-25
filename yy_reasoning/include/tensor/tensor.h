@@ -43,7 +43,7 @@ public:
 
     int32_t dims_size() const;
 
-    //分配一个外部buffer只用buffer 不管数据
+    //分配一个外部buffer 只用buffer 不管数据
     bool assign(std::shared_ptr<base::Buffer> buffer);
 
     size_t byte_size() const;
