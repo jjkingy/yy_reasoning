@@ -5,6 +5,14 @@
 
 namespace model {
 
+Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type,
+                 std::string token_path, std::string model_path, bool is_quant_model)
+                : _tokenizer_type(tokenizer_type),
+                _model_type(model_type),
+                _token_path(std::move(tokenizer_type)),
+                _model_path(std::move(model_path)),
+                _is_quant_model(is_quant_model) {} 
+
 //打开模型权重文件，读取模型结构配置，做内存映射，设置指向权重数据的指针。
 base::Status Model::read_model_file() {
     using namespace base;
@@ -118,12 +126,39 @@ base::Status Model::generate_model_infos(const ModelConfig& config) const {
     return base::error::Success();
 }
     
+base::Status Model::create_encode_layer() {
+    using namespace base;
+    
+    //create token encode decode layer
+    if(_token_type == base::TokenizerType::kEncodeSpe) {
+        _encode_layer = std::make_unique<op::SpeEncodeLayer>(_token_path, true, false);
+    } else {
+#ifdef LLAMA3_SUPPORT
+        _encode_layer = std::make_unique<op::SpeEncodeLayer>(_token_path, true, false);
+#endif
+
+#if defined(QWEN2_SUPPORT) || defined(QWEN3_SUPPORT)
+        _encode_layer = std::make_unique<op::QwenEncodeLayer>(_token_path, false, false);
+#endif
+    }
+
+    if(!_encode_layer) {
+        return error::InternalError("Create the encode layer failed.");
+    }
+
+    _config->_vocab_size = _encode_layer->vocab_size();
+    if(_config->_vocab_size <= 0) {
+        return error::InternalError("Invalid vocab size read from model file!");
+    }
+    return error::Success();
+}
+
 base::Status Model::gen_model_from_file() {
 
     _config = std::make_unique<TransformerConfig>();
 
     //init sentence piece processor
-    auto create_encode_status = create_encode_layer();  //create_encode_layers还没实现
+    auto create_encode_status = create_encode_layer(); 
     if(!create_encode_status) {
         LOG(ERROR) << "Create the encode layer failed!";
         return create_encode_status;

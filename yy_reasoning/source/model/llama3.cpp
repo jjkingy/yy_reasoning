@@ -7,11 +7,10 @@
 
 namespace model {
 
-    //未完成
 void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
-    if(_add_layer) {
-        _add_layer->set_cuda_config(config);
-        _add_layer->to_cuda();
+    if(add_layer_) {
+    _add_layer_->set_cuda_config(config);
+    _add_layer_->to_cuda();
     }
 
     if(_rope_layer) {
@@ -19,7 +18,81 @@ void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
         _rope_layer->to_cuda();
     }
 
-    ////////
+    if(_swiglu_layer) {
+        _swiglu_layer->set_cuda_config(config);
+        _swiglu_layer->to_cuda();
+    }
+
+    if(_cls_layer) {
+        _cls_layer->set_cuda_config(config);
+        _cls_layer->to_cuda();
+    }
+
+    if(_embedding_layer) {
+        _embedding_layer->set_cuda_config(config);
+        _embedding_layer->to_cuda();
+    }
+
+    if(_mha_layer) {
+        _mha_layer->set_cuda_config(config);
+        _mha_layer->to_cuda();
+    }
+
+    for (auto& weight_layer : _wq_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _wk_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _wv_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _wo_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _w1_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _w2_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& weight_layer : _w3_layers) {
+        if(weight_layer) {
+        weight_layer->set_cuda_config(config);
+        weight_layer->to_cuda();
+        }
+    }
+
+    for (auto& rms_norm_layer : _rmsnorm_layers) {
+        if(rms_norm_layer) {
+        rms_norm_layer->to_cuda();
+        rms_norm_layer->set_cuda_config(config);
+        }
+    }
 }
 
 //未完成
@@ -63,6 +136,10 @@ base::Status LLama2Model::init(base::DeviceType device_type) {
     //生成采样器
 
     return error::Success();
+}
+
+base::Status create_layers() {
+    if()
 }
 
 //未完成

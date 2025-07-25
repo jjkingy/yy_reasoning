@@ -44,7 +44,7 @@ private:
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;
     //后面如果没有共享就改成Unique_ptr
-    std::shared_ptr<LLama2Layers> _llama_layers;    //把所有op层组织在一起，方便管理和迁移到cuda
+    std::unique_ptr<LLama2Layers> _llama_layers;    //把所有op层组织在一起，方便管理和迁移到cuda
 };
 
 
