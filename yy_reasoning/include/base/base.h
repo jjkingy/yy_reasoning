@@ -51,6 +51,17 @@ enum StatusCode : uint8_t {
     kInvalidArgument = 7,
 };
 
+enum class ModelType : uint8_t {
+    kModelTypeUnknown = 0,
+    kModelTypeLLama2 = 1,
+};
+
+enum class TokenizerType {
+    kEncodeUnknown = -1,
+    kEncodeSpe = 0,
+    kEncodeBpe = 1,
+};
+
 //status封装错误信息
 class Status {
 public:
