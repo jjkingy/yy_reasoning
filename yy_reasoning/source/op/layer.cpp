@@ -258,7 +258,7 @@ base::Status LayerParam::set_weight(int32_t idx, std::vector<int32_t>& dims,
     //float可以理解为按照最大大小告诉buffer,只是标记大了， 实际内存还是用了那么多
     size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(float), std::multiplies<>());
 
-    //创建Buffer并设置device_type
+    //将权重指针（这里来自于weight_data）赋值给一个buffer，buffer就是我们以往课程中说过的，用于管理内存资源的一个类。
     //这里的buffer只是一个内存缓冲，不关心数据类型，只关注底层数据大小和机器类型
     //所以无论是量化还是非量化都可以使用这块buffer
     std::shared_ptr<base::Buffer> buffer = std::make_shared<base::Buffer>(size, nullptr, const_cast<void*>(weight_ptr), true);
