@@ -142,7 +142,8 @@ protected:
 
 class LayerParam : public Layer {
 public:
-    explicit LayerParam(base::DeviceType device_type, LayerType layer_type, std::string layer_name="");
+    explicit LayerParam(base::DeviceType device_type, LayerType layer_type,
+                        bool is_quant_layer = false, std::string layer_name="");
 
     size_t weight_size() const;
 
