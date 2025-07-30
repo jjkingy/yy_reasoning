@@ -1,16 +1,4 @@
 #pragma once
-#include <utility.h>
-#include "layer.h"
-
-namespace op {
-
-class EmbeddingLayer : public LayerParam {
-public:
-    explicit EmbeddingLayer(base::DeviceType device_type, int32_t dim, int32_t seq_len, int32_t vocab_size);
-
-    
-#ifndef KUIPER_INCLUDE_OP_EMBEDDING_H_
-#define KUIPER_INCLUDE_OP_EMBEDDING_H_
 #include <utility>
 #include "layer.h"
 namespace op {
@@ -38,14 +26,6 @@ class EmbeddingLayer : public LayerParam {
   int32_t _dim = 0;
   int32_t _seq_len = 0;
   int32_t _vocab_size = 0;
-};
-}  // namespace op
-#endif  // KUIPER_INCLUDE_OP_EMBEDDING_H_
-    
-private:
-    int32_t _dim = 0;
-    int32_t _seq_len = 0;
-    int32_t _vocab_size = 0;
 };
 
 }   //namespace op
