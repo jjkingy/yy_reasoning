@@ -3,6 +3,12 @@
 #include <string>
 #include <glog/logging.h>
 
+//避免未使用变量（unused variable）警告
+#define UNUSED(expr)    \ 
+    do {                \
+        (void)(expr);   \
+    } while(0)
+
 namespace model {
 enum class ModelBufferType {
     kInputTokens = 0,
