@@ -476,28 +476,96 @@ void LLama2Model::create_param_layers() {
     _llama_layers->_rmsnorm_layers.push_back(rms_norm_layer);
 }
 
-//未完成
+/*
+相同的算子层复用中间缓存 减少malloc/free cudaMalloc/cudaFree 提升性能(减少内存碎片 减少时间开销)
+预分配KV Cache(动态扩展和会导致内存碎片)
+集中处理Tensor在不同设备cpu/gpu上的分配
+*/
 void LLama2Model::init_mem() {
-
-    //设置内存分配器
-    if(_device_type == base::DeviceType::kDeviceCPU) {
-        auto alloc = base::AllocatorFactory<base::CPUDeviceAllocator>::get_instance();
+    // 1. 选择分配器
+    std::shared_ptr<base::DeviceAllocator> alloc;
+    if (_device_type == base::DeviceType::kDeviceCPU) {
+        alloc = base::CPUDeviceAllocatorFactory::get_instance();
     } else {
-        auto alloc = base::AllocatorFactory<base::CUDADeviceAllocator>::get_instance();
+        alloc = base::CUDADeviceAllocatorFactory::get_instance();
     }
 
-    //如果是cuda就转移到gpu上
-    if(_device_type = base::DeviceType::kDeviceCUDA) {
-        CHECK_NE(_cuda_config, nullptr);
+    // 如果使用 GPU，将所有算子权重迁移到 GPU
+    if (_device_type == base::DeviceType::kDeviceCUDA) {
+        CHECK(_cuda_config != nullptr);
         _llama_layers->to_cuda(_cuda_config);
     }
 
-    auto alloc_cpu = base::AllocatorFactory<base::CPUDeviceAllocator>::get_instance();
-    auto alloc_cu = base::AllocatorFactory<base::CUDADeviceAllocator>::get_instance();
+    // CPU 分配器备用（比如 Pos Tensor、最终结果等需要 Host 可访问的内存）
+    auto alloc_cpu = base::CPUDeviceAllocatorFactory::get_instance();
 
-    //未完成， 分配各层Tensor并注册insert到buffer
+    // 2. 输入相关缓存
+    tensor::Tensor input_tokens(base::DataType::kDataTypeInt32, 1, true, alloc_cpu);
+    tensor::Tensor input_embeddings(base::DataType::kDataTypeFp32, 1, _config->_dim, true, alloc);
 
-    
+    CHECK(insert_buffer(ModelBufferType::kInputTokens, input_tokens));
+    CHECK(insert_buffer(ModelBufferType::kInputEmbeddings, input_embeddings));
+
+    // 3. RoPE sin/cos 缓存
+    tensor::Tensor sin_cache(base::DataType::kDataTypeFp32,
+                             _config->_head_size * _config->_seq_len, true, alloc);
+    tensor::Tensor cos_cache(base::DataType::kDataTypeFp32,
+                             _config->_head_size * _config->_seq_len, true, alloc);
+
+    CHECK(insert_buffer(ModelBufferType::kSinCache, sin_cache));
+    CHECK(insert_buffer(ModelBufferType::kCosCache, cos_cache));
+
+    // 4. RMSNorm 和 FFN 中间输出
+    tensor::Tensor rms_output(base::DataType::kDataTypeFp32, _config->_dim, true, alloc);
+    tensor::Tensor w1_output(base::DataType::kDataTypeFp32, _config->_hidden_dim, true, alloc);
+    tensor::Tensor w3_output(base::DataType::kDataTypeFp32, _config->_hidden_dim, true, alloc);
+
+    CHECK(insert_buffer(ModelBufferType::kOutputRMSNorm, rms_output));
+    CHECK(insert_buffer(ModelBufferType::kOutputMHA, rms_output));
+    CHECK(insert_buffer(ModelBufferType::kW2Output, rms_output));
+    CHECK(insert_buffer(ModelBufferType::kFFNRMSNorm, rms_output));
+    CHECK(insert_buffer(ModelBufferType::kW1Output, w1_output));
+    CHECK(insert_buffer(ModelBufferType::kW3Output, w3_output));
+
+    // 5. KV Cache (增量推理关键)
+    tensor::Tensor key_cache(base::DataType::kDataTypeFp32,
+                             _config->_layer_num, _config->_seq_len,
+                             _config->_kv_dim, true, alloc);
+    tensor::Tensor value_cache(base::DataType::kDataTypeFp32,
+                               _config->_layer_num, _config->_seq_len,
+                               _config->_kv_dim, true, alloc);
+
+    CHECK(insert_buffer(ModelBufferType::kKeyCache, key_cache));
+    CHECK(insert_buffer(ModelBufferType::kValueCache, value_cache));
+
+    // 6. Query 和 Attention 中间结果
+    tensor::Tensor query(base::DataType::kDataTypeFp32, _config->_dim, true, alloc);
+    CHECK(insert_buffer(ModelBufferType::kQuery, query));
+
+    tensor::Tensor pos_tensor(base::DataType::kDataTypeInt32, 1, true, alloc_cpu);
+    CHECK(insert_buffer(ModelBufferType::kInputPos, pos_tensor));
+
+    tensor::Tensor attn(base::DataType::kDataTypeFp32,
+                        _config->_head_num, _config->_seq_len, true, alloc);
+    CHECK(insert_buffer(ModelBufferType::kScoreStorage, attn));
+    CHECK(insert_buffer(ModelBufferType::kAttnOutput, query)); // 直接复用 query buffer
+
+    // 7. 模型最终输出 (logits)
+    tensor::Tensor forward_output(base::DataType::kDataTypeFp32,
+                                  _config->_vocab_size, true, alloc);
+    CHECK(insert_buffer(ModelBufferType::kForwardOutput, forward_output));
+
+    // GPU 推理时需要在 CPU 上额外保留一份输出（用于从 GPU 拷贝结果）
+    if (_device_type == base::DeviceType::kDeviceCUDA) {
+        tensor::Tensor forward_output_cpu(base::DataType::kDataTypeFp32,
+                                          _config->_vocab_size, true, alloc_cpu);
+        CHECK(insert_buffer(ModelBufferType::kForwardOutputCPU, forward_output_cpu));
+    }
+}
+
+
+//未完成forward
+base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const {
 
 }
 

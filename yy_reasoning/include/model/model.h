@@ -25,6 +25,8 @@ public:
 
 
 protected:
+    virtual base::Status insert_buffer(ModelBufferType buffer_idx, const tensor::Tensor& tensor);
+
     virtual base::Status read_model_file();
 
     virtual base::Status gen_model_from_file();
@@ -57,7 +59,7 @@ protected:
     std::string _token_path;
     std::unique_ptr<op::EncodeLayerBase> _encode_layer;
     std::unique_ptr<Sampler::Sampler> _sampler;
-    std::map<ModelBufferType, tensor::Tensor> _buffers;
+    std::map<base::ModelBufferType, tensor::Tensor> _buffers;
     
     base::TokenizerType _tokenizer_type = base::TokenizerType::kTokenizerTypeUnknown;
     base::ModelType _model_type = base::ModelType::kModelTypeUnknown;

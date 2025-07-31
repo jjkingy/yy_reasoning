@@ -13,6 +13,18 @@ Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type,
                 _model_path(std::move(model_path)),
                 _is_quant_model(is_quant_model) {} 
 
+base::Status Model::insert_buffer(ModelBufferType buffer_idx, const tensor::Tensor& tensor) {
+    //std::map.count返回出现次数
+    if(_buffers.count(buffer_idx) > 0) {
+        return base::error::KeyHasExits(std::to_string(int(buffer_idx)) + "has exits in the buffer");
+    }
+    if(tenosr.is_empty()) {
+        return base::error::InvalidArgument("The tensor is empty for inserting buffer");
+    }
+    _buffers.insert({buffer_idx, tensor});
+    return base::error::Success();
+}
+
 //打开模型权重文件，读取模型结构配置，做内存映射，设置指向权重数据的指针。
 base::Status Model::read_model_file() {
     using namespace base;
@@ -154,6 +166,7 @@ base::Status Model::create_encode_layer() {
 }
 
 base::Status Model::gen_model_from_file() {
+    using namespace base;
 
     _config = std::make_unique<TransformerConfig>();
 
@@ -180,4 +193,4 @@ base::Status Model::gen_model_from_file() {
     return error::Success();
 }
 
-}
+}   //namespace model
