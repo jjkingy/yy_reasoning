@@ -54,22 +54,30 @@ base::Status MatmulLayer::check() const {
     return base::error::Success();
 }
 
-// //forward未完成 先把后端写完再回来补充
-// base::Status MatmulLayer::forward() {
-//     auto status = check();
-//     if(!status) {
-//         return Status;
-//     }
-//     if(_device_type = base::DeviceType::kDeviceCUDA) {
-//         CHECK(_cuda_config != nullptr);
-//     }
-//     if(_is_quant_layer) {
-//         kernel::get_matmul_kernel_quant8(_device_type)(get_input(0), get_weight(0), get_output(0),
-//                                                         _group_size, _scalse, _cuda_config ? _cuda_config.get() : nullptr);
-//     } else {
-//         kernel::
-//     }
-// }
+base::Status MatmulLayer::forward() {
+    auto status = check();
+    if(!status) {
+        return status;
+    }
+
+    if(_device_type == base::DeviceType::kDeviceCUDA) {
+        CHECK(_cuda_config != nullptr);
+    }
+    if(_is_quant_layer) {
+        kernel::get_matmul_kernel_quant8(_device_type)(get_input(0), get_weight(0), get_output(0),
+                                                        _group_size, _scales, _cuda_config ? _cuda_config.get() : nullptr);
+    } else {
+        kernel::get_matmul_kernel(_device_type)(get_input(0), get_weight(0), get_output(0), 1.f,
+                                                _cuda_config ? _cuda_config.get() : nullptr);
+    }
+
+    if(_has_bias) {
+        kernel::get_add_kernel(_device_type)(get_output(0), get_bias(0),get_output(0),
+                                            _cuda_config ? _cuda_config->stream : nullptr);
+    }
+
+    return base::error::Success();
+}
 
 base::Status MatmulLayer::set_bias(int32_t idx, int32_t& dim, const void* bias_ptr, 
                                     base::DeviceType device_type) {
