@@ -6,6 +6,7 @@
 #include "base.h"
 #include <memory>
 
+
 namespace base{
 enum class MemcpyKind {
   kMemcpyCPU2CPU = 0,
@@ -46,12 +47,28 @@ public:
     // void memcpy(const void* src_ptr, void* dest_ptr, size_t size) const override;
 };
 
+struct CudaMemoryBuffer {
+    void* _data;
+    size_t _byte_size;
+    bool _busy;
+
+    CudaMemoryBuffer() = default;
+    CudaMemoryBuffer(void* data, size_t byte_size, bool busy)
+        : _data(data), _byte_size(byte_size), _busy(busy) {}
+};
+
 class CUDADeviceAllocator : public DeviceAllocator {
 public:
     explicit CUDADeviceAllocator();
 
     void* allocate(size_t byte_size) const override;
     void release(void* ptr) const override;
+private:
+    //大块显存一般用于KV cache 模型参数等长生命周期内存，这种内存长期复用且申请/释放开销大，不适合频繁清理
+    mutable std::map<int, size_t> _no_busy_cnt;
+    //map<int,vector>因为显卡不止一块，map记录多张显卡上的多个cudaMemoryBuffer
+    mutable std::map<int, std::vector<CudaMemoryBuffer>> _big_buffers_map;
+    mutable std::map<int, std::vector<CudaMemoryBuffer>> _cuda_buffers_map;
 };
 
 
