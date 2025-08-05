@@ -136,6 +136,7 @@ base::Status LLama2Model::init(base::DeviceType device_type) {  //init模型时�
     }
 
     //生成采样器
+    _sampler = std::make_unique<sampler::ArgmaxSampler>(_device_type);
 
     return base::error::Success();
 }
@@ -528,6 +529,7 @@ void LLama2Model::init_mem() {
     CHECK(insert_buffer(ModelBufferType::kW3Output, w3_output));
 
     // 5. KV Cache (增量推理关键)
+    //KV Cache N层 * seq_len(token) * dim
     tensor::Tensor key_cache(base::DataType::kDataTypeFp32,
                              _config->_layer_num, _config->_seq_len,
                              _config->_kv_dim, true, alloc);
