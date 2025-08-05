@@ -23,6 +23,9 @@ public:
     virtual base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                int& next) const = 0;
 
+    virtual std::pair<tensor::Tensor, tensor::Tensor> slice_kv_cache(int32_t layer_idx, 
+                                                                    int32_t token_pos) const;
+
 
 protected:
     virtual base::Status insert_buffer(ModelBufferType buffer_idx, const tensor::Tensor& tensor);

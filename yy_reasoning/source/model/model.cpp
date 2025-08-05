@@ -13,6 +13,29 @@ Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type,
                 _model_path(std::move(model_path)),
                 _is_quant_model(is_quant_model) {} 
 
+std::pair<tensor::Tensor, tensor::Tensor> Model::slice_kv_cache(int32_t layer_idx,
+                                                                int32_t token_pos) const {
+    // (N,max_selen,dim)
+    // 索引到第几个transformer块,layer_idx个transformer块，第token_pos个位置的
+    //k cache v cache的offset是一样的
+    int32_t layer_offset = layer_idx * _config->_seq_len * _config->_kv_dim;
+    int32_t cache_offset = layer_offset + token_pos * _config->_kv_dim;
+
+    //获取底层指针
+    float* key_cache_ptr = 
+        const_cast<float*>(get_buffer(ModelBufferType::kKeyCache).ptr<float>(cache_offset));
+    float* value_cache_ptr = 
+        const_cast<float*>(get_buffer(ModelBufferType::kValueCache).ptr<float>(cache_offset));
+
+    //对原始指针做封装并返回
+    tensor::Tensor key(base::DataType::kDataTypeFp32, _config->_kv_dim, false, nullptr, key_cache_ptr);
+    tensor::Tensor value(base::DataType::kDataTypeFp32, _config->_kv_dim, false, nullptr, value_cache_ptr);
+
+    key.set_device_type(_device_type);
+    value.set_device_type(_device_type);
+    return {key, value};
+}
+
 base::Status Model::insert_buffer(ModelBufferType buffer_idx, const tensor::Tensor& tensor) {
     //std::map.count返回出现次数
     if(_buffers.count(buffer_idx) > 0) {
