@@ -567,8 +567,42 @@ void LLama2Model::init_mem() {
 
 
 //未完成forward
-base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const {
+base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const {
 
+}
+
+void LLama2Model::attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
+    CHECK(_llama_layers != nullptr);
+
+    //kv cache
+    tensor::Tensor query = this->get_buffer(ModelBufferType::kQuery);
+    int32_t pos = pos_tensor.index<int32_t>(0);
+    
+    const auto& [key, val] = slice_kv_cache(layer_idx, pos);
+
+    //wq wk wv @ input
+    //query
+    const auto& query_layer = _llama_layers->_wq_layers.at(layer_idx);
+    CHECK_NE(query_layer, nullptr) << "The query layer in attenrion block is null pointer";
+    auto rmsnorm_output = get_buffer(ModelBufferType::kOutputRMSNorm);
+    STATUS_CHECK(query_layer->forward(rmsnorm_output, query));
+
+    //key
+    const auto& key_layer = _llama_layers->_wk_layers.at(layer_idx);
+    CHECK_NE(key_layer, nullptr) << "The key layer in attention block is null pointer.";
+    STATUS_CHECK(key_layer->forward(rmsnorm_output, key));
+
+    //value
+    const auto& value_layer = _llama_layers->_wv_layers.at(layer_idx);
+    CHECK_NE(value_layer, nullptr) << "The value layer in the attention block is null pointer.";
+    STATUS_CHECK(value_layer->forward(rmsnorm_output, val));
+
+    //rope
+    CHECK_NE(_llama_layers->_rope_layer, nullptr)
+        << "The Rope layer in the attention block is null pointer.";
+    STATUS_CHECK(_llama_layers->_rope_layers->forward(
+        query, key, pos_tensor, get_buffer(ModelBufferType::kSinCache),
+        get_buffer(ModelBufferType::kCosCache), tensor::Tensor{}));
 }
 
 }   //namespace model

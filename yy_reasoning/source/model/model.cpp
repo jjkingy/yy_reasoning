@@ -48,6 +48,16 @@ base::Status Model::insert_buffer(ModelBufferType buffer_idx, const tensor::Tens
     return base::error::Success();
 }
 
+tensor::Tensor& Model::get_buffer(ModelBufferType buffer_idx) {
+    CHECK_GT(_buffers.count(buffer_idx), 0) << int(buffer_idx);
+    return _buffers.at(buffer_idx);
+}
+
+const tensor::Tensor& Model::get_buffer(ModelBufferType buffer_idx) const {
+    CHECK_GT(_buffers.count(buffer_idx), 0) << int(buffer_idx);
+    return _buffers.at(buffer_idx);
+}
+
 //打开模型权重文件，读取模型结构配置，做内存映射，设置指向权重数据的指针。
 base::Status Model::read_model_file() {
     using namespace base;

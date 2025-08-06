@@ -48,6 +48,8 @@ private:
 
     void create_param_quant_layers() override;
 
+    void attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
+
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;
     //后面如果没有共享就改成Unique_ptr
