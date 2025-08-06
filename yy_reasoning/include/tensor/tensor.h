@@ -62,6 +62,12 @@ public:
     template<typename T>
     const T* ptr(int64_t index) const;
 
+    template <typename T>
+    T& index(int64_t offset);
+
+    template <typename T>
+    const T& index(int64_t offset) const;
+
     size_t size() const;
 
     int32_t get_dim(int32_t idx) const;
@@ -108,6 +114,22 @@ const T* Tensor::ptr(int64_t index) const {
     CHECK(_buffer != nullptr && _buffer->ptr() != nullptr)
         << "The data area buffer of this tensor is empty or pointer is empty";
     return const_cast<const T*>(reinterpret_cast<T*>(_buffer->ptr())) + index;
+}
+
+template<typename T>
+T& tensor::index(int64_t offset) {
+    CHECK_GE(offset, 0);
+    CHECK_LT(offset, this->size());
+    T& val = *(reinterpret_cast<T*>(_buffer->ptr()) + offset);
+    return val;
+}
+
+template<typename T>
+const T& tensor::index(int64_t offset) const {
+    CHECK_GE(offset, 0);
+    CHECK_LT(offset, this->size());
+    const T& val = *(reinterpret_cast<T*>(_buffer->ptr()) + offset);
+    return val;
 }
 
 }   //namespace tensor
