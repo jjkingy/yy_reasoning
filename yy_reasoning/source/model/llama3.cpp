@@ -571,6 +571,47 @@ base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Ten
 
 }
 
+void LLama2Model::feed_forward(int32_t layer_idx, const tensor::Tensor& input) const {
+    CHECK(_llama_layers != nullptr);
+
+    //residual add
+    CHECK_NE(_llama_layers->_add_layer, nullptr) << "The add layer in the feedword block is null pointer";
+    STATUS_CHECK(_llama_layers->_add_layer->forward(input, get_buffer(ModelBufferType::kAttenOutput), input));
+
+    //ffn rmsnorm
+    tensor::Tensor ffn_norm_output = get_buffer(ModelBufferType::kFFNRMSNorm);  //获取ffn_rmsnorm的中间缓存
+    const auto& ffn_rmsnorm = _llama_layers->_rmsnorm_layers.at(_config->_layer_num, layer_idx);
+    CHECK_NE(ffn_rmsnorm, nullptr) << "The final rmsnorm layer in feed forward block is null pointer";
+    STATUS_CHECK(ffn_rmsnorm->forward(input, ffn_norm_output));
+
+    // gate wq
+    tensor::Tensor w1_output = get_buffer(ModelBufferType::kW1Output);
+    const auto& w1_layer = _llama_layers->_w1_layers.at(layer_idx);
+    CHECK_NE(w1_layer, nullptr) << "The w1 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w1_layer->forward(ffn_norm_output, w1_output));
+
+    //w3 up_proj
+    tensor::Tensor w3_output = get_buffer(ModelBufferType::kW3Output);
+    const auto& w3_layer = _llama_layers->_w3_layers.at(layer_idx);
+    CHECK_NE(w3_layer, nullptr) << "The w3 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w3_layer->forward(ffn_norm_output, w3_output));
+
+    //swiGLU
+    CHECK_NE(_llama_layers->_swiglu_layer, nullptr)
+        << "The swiglu layer in the feedforward block is null pointer";
+    STATUS_CHECK(_llama_layers->_swiglu_layer->forward(w1_output, w3_output, w1_output));
+
+    //w2 down_proj
+    tensor::Tensor w2_output = get_buffer(ModelBufferType::kW2Output);
+    const auto& w2_layer = _llama_layers->_w2_layers.at(layer_idx);
+    CHECK_NE(w2_layer, nullptr) << "The w2 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w2_layer->forward(w1_output, w2_output));
+
+    //residual add
+    STATUS_CHECK(_llama_layers->_add_layer->forward(input, w2_output, input));
+
+}
+
 void LLama2Model::attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
     CHECK(_llama_layers != nullptr);
 

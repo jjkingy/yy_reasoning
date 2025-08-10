@@ -19,10 +19,10 @@ struct LLama2Layers {
     std::vector<std::shared_ptr<op::Layer>> _wv_layers;   // Value 投影层（Wv）
     std::vector<std::shared_ptr<op::Layer>> _wo_layers;   // Attention 输出投影层（Wo）
 
-    std::vector<std::shared_ptr<op::Layer>> _w1_layers;   // FeedForward 第一层（W1）
-    std::vector<std::shared_ptr<op::Layer>> _w2_layers;   // FeedForward 第二层（W2）
+    std::vector<std::shared_ptr<op::Layer>> _w1_layers;   // FeedForward 第一层（W1）gate
+    std::vector<std::shared_ptr<op::Layer>> _w2_layers;   // FeedForward 第二层（W2）down_proj
     std::vector<std::shared_ptr<op::Layer>> _rmsnorm_layers; // RMSNorm 层（替代 LayerNorm）
-    std::vector<std::shared_ptr<op::Layer>> _w3_layers;   // FeedForward 的辅助投影层（用于 SwiGLU 的分支）
+    std::vector<std::shared_ptr<op::Layer>> _w3_layers;   // FeedForward 的辅助投影层（用于 SwiGLU 的分支）up_proj
 
     std::shared_ptr<op::Layer> _cls_layer;                // 分类头（可选，用于下游分类任务）
     std::shared_ptr<op::Layer> _embedding_layer;          // 词嵌入层（Token → Embedding）
@@ -49,6 +49,8 @@ private:
     void create_param_quant_layers() override;
 
     void attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
+
+    void feed_forward(int32_t layer_idx, const tensor::Tensor& input) const;
 
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;
