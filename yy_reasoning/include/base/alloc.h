@@ -2,9 +2,12 @@
 // │  Buffer   │ ───────────────────────────────▶ │ Allocator  │
 // │ (RAII)    │ ◀─────────────────────────────── │  (CPU / GPU)│
 // └───────────┘        owns ptr & bytes         └────────────┘
-#pragma once
+#ifndef YY_REASONING_BASE_ALLOC_H_
+#define YY_REASONING_BASE_ALLOC_H_
+
 #include "base.h"
 #include <memory>
+#include <map>
 
 
 namespace base{
@@ -28,7 +31,8 @@ public:
 
     //把memcpy集成起来由父类实现
     virtual void memcpy(const void* src_ptr, void* dest_ptr, size_t size, 
-                        MemcpyKind memcpy_ind = MemcpyKind::kMemcpyCPU2CPU, void* stream = nullptr, bool need_sync = false) const;
+                        MemcpyKind memcpy_ind = MemcpyKind::kMemcpyCPU2CPU, 
+                        void* stream = nullptr, bool need_sync = false) const;
 
     virtual void memset_zero(void* ptr, size_t byte_size, void* stream, bool need_sync = false);
 
@@ -100,3 +104,5 @@ public:
 
 
 }   //namespace base
+
+#endif

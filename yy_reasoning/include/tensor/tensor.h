@@ -76,9 +76,6 @@ public:
 
     base::DeviceType device_type() const;
 
-    size_t byte_size() const;
-
-
 private:
     std::shared_ptr<base::Buffer> _buffer;
     size_t _size = 0;
@@ -117,7 +114,7 @@ const T* Tensor::ptr(int64_t index) const {
 }
 
 template<typename T>
-T& tensor::index(int64_t offset) {
+T& Tensor::index(int64_t offset) {
     CHECK_GE(offset, 0);
     CHECK_LT(offset, this->size());
     T& val = *(reinterpret_cast<T*>(_buffer->ptr()) + offset);
@@ -125,7 +122,7 @@ T& tensor::index(int64_t offset) {
 }
 
 template<typename T>
-const T& tensor::index(int64_t offset) const {
+const T& Tensor::index(int64_t offset) const {
     CHECK_GE(offset, 0);
     CHECK_LT(offset, this->size());
     const T& val = *(reinterpret_cast<T*>(_buffer->ptr()) + offset);

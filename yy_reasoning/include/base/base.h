@@ -1,13 +1,15 @@
-#pragma once
+#ifndef YY_REASONING_BASE_BASE_H_
+#define YY_REASONING_BASE_BASE_H_
+
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <glog/logging.h>
 
 //避免未使用变量（unused variable）警告
-#define UNUSED(expr)    \ 
-    do {                \
-        (void)(expr);   \
+#define UNUSED(expr) \
+    do { \
+        (void)(expr); \
     } while(0)
 
 namespace model {
@@ -53,6 +55,13 @@ protected:
 };
 
 
+enum class DataType : uint8_t {
+    kDataTypeUnknown = 0,
+    kDataTypeFp32 = 1,
+    kDataTypeInt8 = 2,
+    kDataTypeInt32 = 3,
+};
+
 inline size_t DataTypeSize(DataType data_type) {
     if (data_type == DataType::kDataTypeFp32) {
         return sizeof(float);
@@ -64,13 +73,6 @@ inline size_t DataTypeSize(DataType data_type) {
         return 0;
     }
 }
-
-enum class DataType : uint8_t {
-    kDataTypeUnknown = 0,
-    kDataTypeFp32 = 1,
-    kDataTypeInt8 = 2,
-    kDataTypeInt32 = 3,
-};
 
 //错误枚举码 不使用enum class, 允许后面的隐式转换
 enum StatusCode : uint8_t {
@@ -130,6 +132,20 @@ namespace error 的作用是为常见的错误类型提供统一、易用的工�
 集中管理所有常见错误类型，方便维护和拓展
 */
 namespace error {
+
+#define STATUS_CHECK(call)                                                                 \
+    do {                                                                                     \
+        const base::Status& status = call;                                                     \
+        if (!status) {                                                                         \
+        const size_t buf_size = 512;                                                         \
+        char buf[buf_size];                                                                  \
+        snprintf(buf, buf_size - 1,                                                          \
+                "Infer error\n File:%s Line:%d\n Error code:%d\n Error msg:%s\n", __FILE__, \
+                __LINE__, int(status), status.get_err_msg().c_str());                       \
+        LOG(FATAL) << buf;                                                                   \
+        }                                                                                      \
+    } while (0)
+    
 Status Success(const std::string& err_msg = "");
 
 Status FunctionNotImplement(const std::string& err_msg = "");
@@ -150,3 +166,4 @@ std::ostream& operator<<(std::ostream& os, const Status& x);
 
 }   //namespace base
 
+#endif
