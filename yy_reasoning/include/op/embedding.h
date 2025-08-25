@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 #include "layer.h"
+
 namespace op {
 struct EmbeddingOutput {
   tensor::Tensor input_tokens;

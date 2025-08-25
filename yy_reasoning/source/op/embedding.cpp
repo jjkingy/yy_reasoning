@@ -65,7 +65,7 @@ base::Status EmbeddingLayer::forward() {
 
     kernel::get_emb_kernel(_device_type)(input, weight, output, _vocab_size, stream);
 
-    return base::error::Success();
+    return base::StatusCode::kSuccess;
 }
 
-}
+}   //namespace op
