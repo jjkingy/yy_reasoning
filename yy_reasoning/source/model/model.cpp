@@ -13,6 +13,32 @@ Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type,
                 _model_path(std::move(model_path)),
                 _is_quant_model(is_quant_model) {} 
 
+base::ModelType Model::model_type() const { return _model_type; }
+
+const std::string& Model::token_path() const { return _token_path; }
+
+const std::string& Model::model_path() const { return _model_path; }
+
+std::vector<int32_t> Model::encode(const std::string& sentence) const {
+    CHECK(_encode_layer != nullptr);
+    return _encode_layer->encode(sentence);
+}
+
+bool Model::is_sentence_ending(int32_t token_idx) const {
+    CHECK(this->_encode_layer != nullptr);
+    return this->_encode_layer->is_sentence_ending(token_idx);
+}
+
+std::string Model::decode(int32_t token_idx) const {
+    CHECK(this->_encode_layer != nullptr);
+    return this->_encode_layer->decode(token_idx);
+}
+
+std::string Model::decode(std::vector<int32_t> token_idxs) const {
+    CHECK(this->_encode_layer != nullptr);
+    return this->_encode_layer->decode(token_idxs);
+}
+
 std::pair<tensor::Tensor, tensor::Tensor> Model::slice_kv_cache(int32_t layer_idx,
                                                                 int32_t token_pos) const {
     // (N,max_selen,dim)
@@ -34,6 +60,33 @@ std::pair<tensor::Tensor, tensor::Tensor> Model::slice_kv_cache(int32_t layer_id
     key.set_device_type(_device_type);
     value.set_device_type(_device_type);
     return {key, value};
+}
+
+tensor::Tensor Model::fill_input(const tensor::Tensor& pos_tensor,
+                                 const op::EmbeddingOutput& embedding_output,
+                                 bool is_prompt) const {
+    const int32_t pos = pos_tensor.index<int32_t>(0);
+    auto [input_tokens, input_embeddings, input_token_num] = embedding_output;
+
+    int32_t index = 0;
+    if(is_prompt) {
+        index = pos;
+    }
+#if defined(QWEN3_SUPPORT)
+    std::shared_ptr<base::Buffer> input_emb_buffer = std::make_shared<base::Buffer>(
+        _config->_hidden_dim * sizeof(float), nullptr,
+        input_embeddings.ptr<float>(index * _config->_hidden_num), true);
+    tensor::Tensor input(base::DataType::kDataTypeFp32, _config->_hidden_dim);
+#else
+    std::shared_ptr<base::Buffer> input_emb_buffer =
+      std::make_shared<base::Buffer>(_config->_dim * sizeof(float), nullptr,
+                                     input_embeddings.ptr<float>(index * _config->_dim), true);
+    tensor::Tensor input(base::DataType::kDataTypeFp32, _config->_dim);
+#endif
+    
+    input.assign(input_emb_buffer);
+    input.set_device_type(_device_type);
+    return input;
 }
 
 base::Status Model::insert_buffer(ModelBufferType buffer_idx, const tensor::Tensor& tensor) {

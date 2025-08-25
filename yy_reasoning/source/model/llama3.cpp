@@ -101,6 +101,12 @@ void LLama2Layers::to_cuda(std::shared_ptr<kernel::CudaConfig> config) {
     }
 }
 
+LLama2Model::LLama2Model(base::TokenizerType tokenizer_type, std::string token_path,
+                        std::string model_path, bool is_quant_model)
+    : Model(tokenizer_type, base::ModelType::kModelTypeLLama2, std::move(token_path), 
+            std::move(model_path), is_quamt_model) {}
+        
+
 //未完成
 //参数检查 → 设备初始化 → 读权重 → 分配内存 → 预计算 RoPE → 生成采样器
 base::Status LLama2Model::init(base::DeviceType device_type) {  //init模型时传入device_type, 决定init在哪个设备上
@@ -593,13 +599,13 @@ op::EmbeddingOutput LLama2Model::embedding(const std::vector<int>& tokens) {
     return output;
 }
 
-//forward调用子函数未完成
+
 base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                   int& next) const {
     if(input.is_empty()) {
         return base::error::InvalidArgument("The input tensor is empty.");
     }
-    if(_device_type == base::DeviceType::kDeviceCPU && is_quant_model) {
+    if(_device_type == base::DeviceType::kDeviceCPU && _is_quant_model) {
         return base::error::InternalError("unsupport int 8 in cpu");
     }
 
@@ -733,6 +739,41 @@ void LLama2Model::feed_forward(int32_t layer_idx, const tensor::Tensor& input) c
     //residual add
     STATUS_CHECK(_llama_layers->_add_layer->forward(input, w2_output, input));
 
+}
+
+ void LLama2Model::cls_logits(const tensor::Tensor& input) const {
+    CHECK(_llama_layer != nullptr);
+    const auto& norm = _llama_layers->_rmsnorm_layers.at(2 * _config->_layer_num);
+    CHECK_NE(norm, nullptr);
+    STATUS_CHECK(norm->forward(input, input));
+
+    tensor::Tensor forward_output = get_buffer(ModelBufferType::kForwardOutput);
+    CHECK_NE(_llama_layers->_cls_layer, nullptr);
+    STATUS_CHECK(_llama_layers->_cls_layer->forward(input, forward_output));
+ }
+
+base::Status LLama2Model::predict(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
+                                    bool is_prompt, int& next) const {
+    auto status = forward(input, pos_tensor, next);
+    if(!status) {
+        return status;
+    }
+    next = post_processing(pos_tensor, is_prompt);
+    return base::error::Success();
+}
+
+int32_t LLama2Model::post_processing(const tensor::Tensor& pos, bool is_prompt) const {
+    tensor::Tensor forward_output = get_buffer(ModelBufferType::kForwardOutput);
+    const float* forward_logits = forward_output.ptr<float>();
+    
+    int32_t next = 0;
+    if(is_prompt) {
+        next = -1;
+    } else {
+        next = static_cast<int32_t>(_sampler->sample(forward_logits, forward_output.size(),
+                                                    _cuda_config ? _cuda_config->_stream : nullptr));
+    }
+    return next;
 }
 
 }   //namespace model

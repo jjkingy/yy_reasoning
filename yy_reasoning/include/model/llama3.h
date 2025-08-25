@@ -33,8 +33,13 @@ struct LLama2Layers {
 
 class LLama2Model : public Model {
 public:
+    explicit LLama2Model(base::TokenizerType tokenizer_type, std::string token_path,
+                        std::string model_path, bool is_quant_model);
     
     base::Status init(base::DeviceType device_type) override;
+
+    base::Status predict(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
+                       bool is_prompt, int& next) const override;
 
     base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const override;
 
@@ -58,6 +63,10 @@ private:
     void feed_forward(int32_t layer_idx, const tensor::Tensor& input) const;
 
     void attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
+
+    void cls_logits(const tensor::Tensor& input) const;
+
+    int32_t post_processing(const tensor::Tensor& pos, bool is_prompt) const override;
 
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;

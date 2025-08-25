@@ -21,6 +21,9 @@ public:
 
     virtual base::Status init(base::DeviceType device_type) = 0;
     
+    virtual base::Status predict(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
+                               bool is_prompt, int& next) const = 0;
+
     virtual base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                int& next) const = 0;
 
@@ -30,6 +33,27 @@ public:
 
     virtual std::pair<tensor::Tensor, tensor::Tensor> slice_kv_cache(int32_t layer_idx, 
                                                                     int32_t token_pos) const;
+    
+    base::ModelType model_type() const;
+    
+    const std::string& token_path() const;
+
+    const std::string& model_path() const;
+
+    virtual op::EmbeddingOutput embedding(const std::vector<int>& tokens) const = 0;
+
+    virtual bool is_sentence_ending(int32_t token_idx) const;
+
+    virtual std::string decode(int32_t token_idx) const;
+
+    virtual std::string decode(std::vector<int> token_idxs) const;
+
+    virtual std::vector<int32_t> encode(const std::string& sentence) const;
+
+    virtual tensor::Tensor fill_input(const tensor::Tensor& pos_tensor,
+                                    const op::EmbeddingOutput& embedding_output,
+                                    bool is_prompt) const;
+
 
 
 protected:
@@ -42,6 +66,8 @@ protected:
     virtual base::Status create_encode_layer();
 
     virtual base::Status generate_model_infos(const ModelConfig& config) const;
+
+    virtual int32_t post_processing(const tensor::Tensor& pos, bool is_prompt) const = 0;
 
 private:
 //必须重写的接口
