@@ -1,4 +1,4 @@
-#include "tensor/tensor.h"
+#include <tensor/tensor.h>
 #include "swiglu_kernel.cuh"
 
 namespace kernel {

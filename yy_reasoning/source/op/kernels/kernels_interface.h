@@ -1,6 +1,6 @@
 #pragma once
+#include <base/cuda_config.h>
 #include "tensor/tensor.h"
-#include "base/cuda_config.h"
 
 
 namespace kernel {
@@ -13,7 +13,7 @@ using AddKernel = void (*)(const tensor::Tensor& input1, const tensor::Tensor& i
 using MatmulKernel = void (*)(const tensor::Tensor& input, const tensor::Tensor& weight,
                                 const tensor::Tensor& output, float scale, const CudaConfig* config);
 
-using MatmulKernelQuant = void (*)(const tensor::Tensor& innput, const tensor::Tensor& weight,
+using MatmulKernelQuant = void (*)(const tensor::Tensor& input, const tensor::Tensor& weight,
                                     const tensor::Tensor& output, int32_t group_size,
                                     const tensor::Tensor& scale, const CudaConfig* config);
 
@@ -26,6 +26,16 @@ using RMSNormKernelDim = void (*)(const tensor::Tensor& input, const tensor::Ten
 using EmbeddingKernel = void (*)(const tensor::Tensor& input, const tensor::Tensor& weight,
                                 const tensor::Tensor& output, int32_t vocab_size, void* stream);
 
+using MHAKernel = void (*)(int32_t pos, int32_t head_num, int32_t layer_index, int32_t seq_len,
+                          int32_t kv_dim, int32_t kv_mul, int32_t head_size,
+                          const tensor::Tensor& mha_out, const tensor::Tensor& query_tensor,
+                          const tensor::Tensor& score_tensor,
+                          const tensor::Tensor& key_cache_tensor,
+                          const tensor::Tensor& value_cache_tensor, base::DeviceType device_type,
+                          CudaConfig*);
+
+using SwigluKernel = void (*)(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                              const tensor::Tensor& output, void* stream);
 
 void softmax_inplace_cpu(const float* input_ptr, size_t size);
 
@@ -37,8 +47,12 @@ AddKernel get_add_kernel(base::DeviceType device_type);
 
 EmbeddingKernel get_emb_kernel(base::DeviceType device_type);
 
+MHAKernel get_mha_kernel(base::DeviceType device_type);
+
 RMSNormKernel get_rmsnorm_kernel(base::DeviceType device_type);
 
 RMSNormKernelDim get_rmsnorm_dim_kernel(base::DeviceType device_type);
+
+SwigluKernel get_swiglu_kernel(base::DeviceType device_type, void* stream = nullptr);
 
 }   //namespace kernel

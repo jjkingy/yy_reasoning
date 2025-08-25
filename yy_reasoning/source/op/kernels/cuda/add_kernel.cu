@@ -9,20 +9,23 @@ __global__ void add_kernel_cu_fp32(int32_t size,
     int pack_num = size / 4;
     int pack_off = pack_num * 4;
 
-    if(tid >= pack_num) {
-        return;
+    if(tid < pack_num) {
+        const float4* in1_4 = reinterpret_cast<const float4*>(in1);
+        const float4* in2_4 = reinterpret_cast<const float4*>(in2);
+
+        float4* out_4 = reinterpret_cast<float4*>(out);
+
+        float4 v1 = in1_4[tid];
+        float4 v2 = in2_4[tid];
+        out_4[tid] = make_float4(v1.x + v2.x,
+                                 v1.y + v2.y,
+                                 v1.z + v2.z,
+                                 v1.w + v2.w);
     }
-
-    float4 v1 = reinterpret_cast<const float4*>(in1)[tid];
-    float4 v2 = reinterpret_cast<const float4*>(in2)[tid];
-    
-    float4 result = make_float4(v1.x + v2.x, v1.y + v2.y,
-                                v1.z + v2.z, v1.w + v2.w);
-
-    reinterpret_cast<float4*>(out)[tid] = result;
-
-    for(int i = tid + pack_off; i < size; i += blockDim.x) {
-        out[i] = in1[i] + in2[i];
+    if(tid == 0) {
+        for (int i = pack_off; i < size; i++) {
+            out[i] = in1[i] + in2[i];
+        }
     }
 }
 
