@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLAS_HELPER_H
+#define BLAS_HELPER_H
 #include <cublas_v2.h>
 #include <cuda_runtime_api.h>
 
@@ -12,3 +13,5 @@ struct CudaConfig {
     }
 };
 }
+
+#endif

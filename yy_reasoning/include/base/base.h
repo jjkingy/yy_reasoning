@@ -1,9 +1,9 @@
-#ifndef YY_REASONING_BASE_BASE_H_
-#define YY_REASONING_BASE_BASE_H_
+#ifndef YY_REASONING_INCLUDE_BASE_BASE_H_
+#define YY_REASONING_INCLUDE_BASE_BASE_H_
 
+#include <iostream>
 #include <cstdint>
 #include <string>
-#include <vector>
 #include <glog/logging.h>
 
 //避免未使用变量（unused variable）警告
@@ -44,22 +44,16 @@ enum class DeviceType : uint8_t {
     kDeviceCUDA = 2,
 };
 
-class NoCopyable {
-protected:
-    NoCopyable() = default;
-
-    ~NoCopyable() = default;
-
-    NoCopyable(const NoCopyable&) = delete;
-    NoCopyable& operator=(const NoCopyable&) = delete;
-};
-
-
 enum class DataType : uint8_t {
     kDataTypeUnknown = 0,
     kDataTypeFp32 = 1,
     kDataTypeInt8 = 2,
     kDataTypeInt32 = 3,
+};
+
+enum class ModelType : uint8_t {
+    kModelTypeUnknown = 0,
+    kModelTypeLLama2 = 1,
 };
 
 inline size_t DataTypeSize(DataType data_type) {
@@ -74,6 +68,17 @@ inline size_t DataTypeSize(DataType data_type) {
     }
 }
 
+class NoCopyable {
+protected:
+    NoCopyable() = default;
+
+    ~NoCopyable() = default;
+
+    NoCopyable(const NoCopyable&) = delete;
+
+    NoCopyable& operator=(const NoCopyable&) = delete;
+};
+
 //错误枚举码 不使用enum class, 允许后面的隐式转换
 enum StatusCode : uint8_t {
     kSuccess = 0,
@@ -83,11 +88,6 @@ enum StatusCode : uint8_t {
     kInternalError = 5,
     kKeyValueHasExist = 6,
     kInvalidArgument = 7,
-};
-
-enum class ModelType : uint8_t {
-    kModelTypeUnknown = 0,
-    kModelTypeLLama2 = 1,
 };
 
 enum class TokenizerType {

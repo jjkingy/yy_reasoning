@@ -2,7 +2,7 @@
 #include <glog/logging.h>
 
 namespace base {
-Buffer::Buffer(size_t byte_size, std::shared_ptr<DeviceAllocator> allocator, void* ptr,bool use_external) 
+Buffer::Buffer(size_t byte_size, std::shared_ptr<base::DeviceAllocator> allocator, void* ptr,bool use_external) 
     : _byte_size(byte_size), 
     _allocator(allocator), 
     _ptr(ptr), 
@@ -10,7 +10,7 @@ Buffer::Buffer(size_t byte_size, std::shared_ptr<DeviceAllocator> allocator, voi
     //如果没有传入外部指针，说明buffer需要主动申请管理一块资源
     if(!_ptr && _allocator) {
     _device_type = _allocator->device_type();
-    ——use_external = false;
+    _use_external = false;
     _ptr = _allocator->allocate(byte_size);
   }
 }
@@ -45,6 +45,67 @@ bool Buffer::allocate() {
         }
     } else {
         return false;
+    }
+}
+
+std::shared_ptr<DeviceAllocator> Buffer::allocator() const {
+    return _allocator;
+}
+
+void Buffer::copy_from(const Buffer& buffer) const {
+    CHECK(_allocator != nullptr);
+    CHECK(buffer._ptr != nullptr);
+
+    size_t byte_size = _byte_size < buffer._byte_size ? _byte_size : buffer._byte_size;
+    const DeviceType& buffer_device = buffer.device_type();
+    const DeviceType& current_device = this->device_type();
+    CHECK(buffer_device != DeviceType::kDeviceUnknown &&
+            current_device != DeviceType::kDeviceUnknown);
+
+    if (buffer_device == DeviceType::kDeviceCPU &&
+        current_device == DeviceType::kDeviceCPU) {
+        return _allocator->memcpy(buffer.ptr(), this->_ptr, byte_size);
+    } else if (buffer_device == DeviceType::kDeviceCUDA &&
+                current_device == DeviceType::kDeviceCPU) {
+        return _allocator->memcpy(buffer.ptr(), this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCUDA2CPU);
+    } else if (buffer_device == DeviceType::kDeviceCPU &&
+                current_device == DeviceType::kDeviceCUDA) {
+        return _allocator->memcpy(buffer.ptr(), this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCPU2CUDA);
+    } else {
+        return _allocator->memcpy(buffer.ptr(), this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCUDA2CUDA);
+    }
+}
+
+void Buffer::copy_from(const Buffer* buffer) const {
+    CHECK(_allocator != nullptr);
+    CHECK(buffer != nullptr || buffer->_ptr != nullptr);
+
+    size_t dest_size = _byte_size;
+    size_t src_size = buffer->_byte_size;
+    size_t byte_size = src_size < dest_size ? src_size : dest_size;
+
+    const DeviceType& buffer_device = buffer->device_type();
+    const DeviceType& current_device = this->device_type();
+    CHECK(buffer_device != DeviceType::kDeviceUnknown &&
+            current_device != DeviceType::kDeviceUnknown);
+
+    if (buffer_device == DeviceType::kDeviceCPU &&
+        current_device == DeviceType::kDeviceCPU) {
+        return _allocator->memcpy(buffer->_ptr, this->_ptr, byte_size);
+    } else if (buffer_device == DeviceType::kDeviceCUDA &&
+                current_device == DeviceType::kDeviceCPU) {
+        return _allocator->memcpy(buffer->_ptr, this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCUDA2CPU);
+    } else if (buffer_device == DeviceType::kDeviceCPU &&
+                current_device == DeviceType::kDeviceCUDA) {
+        return _allocator->memcpy(buffer->_ptr, this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCPU2CUDA);
+    } else {
+        return _allocator->memcpy(buffer->_ptr, this->_ptr, byte_size,
+                                MemcpyKind::kMemcpyCUDA2CUDA);
     }
 }
 

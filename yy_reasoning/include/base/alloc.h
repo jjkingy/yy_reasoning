@@ -2,8 +2,8 @@
 // │  Buffer   │ ───────────────────────────────▶ │ Allocator  │
 // │ (RAII)    │ ◀─────────────────────────────── │  (CPU / GPU)│
 // └───────────┘        owns ptr & bytes         └────────────┘
-#ifndef YY_REASONING_BASE_ALLOC_H_
-#define YY_REASONING_BASE_ALLOC_H_
+#ifndef YY_REASONING_INCLUDE_BASE_ALLOC_H_
+#define YY_REASONING_INCLUDE_BASE_ALLOC_H_
 
 #include "base.h"
 #include <memory>
@@ -12,10 +12,10 @@
 
 namespace base{
 enum class MemcpyKind {
-  kMemcpyCPU2CPU = 0,
-  kMemcpyCPU2CUDA = 1,
-  kMemcpyCUDA2CPU = 2,
-  kMemcpyCUDA2CUDA = 3,
+    kMemcpyCPU2CPU = 0,
+    kMemcpyCPU2CUDA = 1,
+    kMemcpyCUDA2CPU = 2,
+    kMemcpyCUDA2CUDA = 3,
 };
 
 class DeviceAllocator {

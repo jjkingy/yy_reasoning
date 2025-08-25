@@ -1,4 +1,5 @@
-#pragma once
+#ifndef YY_REASONING_INCLUDE_OP_LAYER_H_
+#define YY_REASONING_INCLUDE_OP_LAYER_H_
 #include "base/base.h"
 #include <string>
 #include <vector>

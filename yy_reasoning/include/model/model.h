@@ -1,4 +1,5 @@
-#pragma once
+#ifndef YY_REASONING_INCLUDE_MODEL_MODEL_H_
+#define YY_REASONING_INCLUDE_MODEL_MODEL_H_
 #include <op/embedding.h>
 #include <map>
 #include <string>
@@ -75,3 +76,5 @@ protected:
 
 
 }   //namespace model
+
+#endif

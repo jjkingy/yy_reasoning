@@ -6,6 +6,15 @@
 
 
 namespace tensor {
+template <typename T, typename Tp>
+static size_t reduce_dimension(T begin, T end, Tp init) {
+    if (begin >= end) {
+        return 0;
+    }
+    size_t size = std::accumulate(begin, end, init, std::multiplies<>());
+    return size;
+}
+
 static size_t data_type_size(base::DataType data_type) {
     switch(data_type) {
         case base::DataType::kDataTypeFp32:
@@ -96,7 +105,7 @@ Tensor::Tensor(base::DataType data_type, int32_t dim0, int32_t dim1, int32_t dim
 Tensor::Tensor(base::DataType data_type, std::vector<int32_t> dims, bool need_alloc,
                 std::shared_ptr<base::DeviceAllocator> alloc, void* ptr)
                 :_data_type(data_type), _dims(std::move(dims)) {
-    _size = std::accumulate(_dims.begin(), _dims.end(), 1, std::multiplies<int32_t>());
+    _size = reduce_dimension(_dims.begin(), _dims.end(), 1);
     if(need_alloc && alloc) {   //需要分配并且有分配器
         allocate(alloc);
     } else {    //不需要分配，使用外部传入得内存
@@ -197,6 +206,41 @@ size_t Tensor::size() const {
     return this->_size;
 }
 
+base::DataType Tensor::data_type() const { return _data_type; }
+
+void Tensor::reshape(const std::vector<int32_t>& dims) {
+    size_t size = reduce_dimension(dims.begin(), dims.end(), 1);
+
+    //buffer为空 直接设置 dims 和 size
+    if(!_buffer) {
+        this->_dims = dims;
+        this->_size = size;
+        return;
+    }
+
+    //size大于tensor现在的大小 重新申请buffer
+    if(size > _size) {
+        auto new_buffer = std::make_shared<base::Buffer>(size * base::DataTypeSize(this->_data_type),
+                                                                                    _buffer->allocator());
+        CHECK(new_buffer->allocate());
+        new_buffer->copy_from(_buffer.get());
+        this->_buffer = new_buffer;
+    }
+    this->_dims = dims;
+    this->_size = size;
+}
+
+Tensor Tensor::clone() const {
+    Tensor new_tensor = *this;
+    size_t byte_size = this->byte_size();
+
+    auto alloc = _buffer->allocator();
+    new_tensor._buffer = std::make_shared<base::Buffer>(byte_size, alloc);
+    new_tensor._buffer->copy_from(_buffer.get());
+    return new_tensor;
+}
+
+
 size_t Tensor::byte_size() const { return this->size() * DataTypeSize(_data_type);}
 
 base::DeviceType Tensor::device_type() const {
@@ -207,7 +251,7 @@ std::vector<size_t> Tensor::strides() const {
     std::vector<size_t> strides;
     if(!_dims.empty()) {
         for(auto i = 0; i < _dims.size() - 1; i++) {
-            size_t stride = std::accumulate(_dims.begin() + i + 1, _dims.end(), 1, std::multiplies<size_t>());
+            size_t stride = reduce_dimension(_dims.begin() + i + 1, _dims.end(), 1);
             strides.emplace_back(stride);
         }
         strides.emplace_back(1);

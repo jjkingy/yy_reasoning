@@ -1,4 +1,5 @@
-#pragma once
+#ifndef YY_REASONING_INCLUDE_MODEL_LLAMA_H_
+#define YY_REASONING_INCLUDE_MODEL_LLAMA_H_
 #include <base/cuda_config.h>
 #include "model.h"
 #include "op/add.h"
@@ -37,6 +38,8 @@ public:
 
     base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor, int& next) const override;
 
+    op::EmbeddingOutput embedding(const std::vector<int>& tokens) const override;
+
 private:
     void init_mem() override;
 
@@ -48,9 +51,13 @@ private:
 
     void create_param_quant_layers() override;
 
-    void attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
+    void attention_rms(int32_t layer_idx, const tensor::Tensor& input) const;
+
+    void attention_mha(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
 
     void feed_forward(int32_t layer_idx, const tensor::Tensor& input) const;
+
+    void attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const;
 
 private:
     std::shared_ptr<kernel::CudaConfig> _cuda_config;
@@ -60,3 +67,4 @@ private:
 
 
 }   //namespace model
+#endif

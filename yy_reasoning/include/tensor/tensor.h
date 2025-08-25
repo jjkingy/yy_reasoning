@@ -1,11 +1,12 @@
-#pragma once
-#include "base/base.h"
-#include "base/buffer.h"
+#ifndef YY_REASONING_INCLUDE_TENSOR_TENSOR_H_
+#define YY_REASONING_INCLUDE_TENSOR_TENSOR_H_
 #include <driver_types.h>
 #include <glog/logging.h>
 #include <armadillo>
 #include <memory>
 #include <vector>
+#include "base/base.h"
+#include "base/buffer.h"
 
 namespace tensor{
 
@@ -68,13 +69,19 @@ public:
     template <typename T>
     const T& index(int64_t offset) const;
 
+    void reshape(const std::vector<int32_t>& dims);
+
     size_t size() const;
+
+    base::DataType data_type() const;
 
     int32_t get_dim(int32_t idx) const;
 
     std::vector<size_t> strides() const;
 
     base::DeviceType device_type() const;
+
+    tensor::Tensor clone() const;
 
 private:
     std::shared_ptr<base::Buffer> _buffer;
@@ -131,3 +138,4 @@ const T& Tensor::index(int64_t offset) const {
 
 }   //namespace tensor
 
+#endif

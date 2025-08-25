@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef YY_REASONING_INCLUDE_MODEL_LLAMA_CONFIG_H_
+#define YY_REASONING_INCLUDE_MODEL_LLAMA_CONFIG_H_
 namespace model {
 struct ModelConfig {
     int32_t dim = 0;
@@ -33,3 +33,5 @@ struct TransformerConfig {
 };
 
 }  // namespace model
+
+#endif
