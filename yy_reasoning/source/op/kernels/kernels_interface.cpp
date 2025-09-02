@@ -38,6 +38,17 @@ MatmulKernel get_matmul_kernel(base::DeviceType device_type) {
     }
 }
 
+RoPEKernel get_rope_kernel(base::DeviceType device_type) {
+    if (device_type == base::DeviceType::kDeviceCPU) {
+        return rope_kernel_cpu;
+    } else if (device_type == base::DeviceType::kDeviceCUDA) {
+        return rope_kernel_cu;
+    } else {
+        LOG(FATAL) << "Unknown device type for get a rope kernel.";
+        return nullptr;
+    }
+}
+
 MatmulKernelQuant get_matmul_kernel_quant8(base::DeviceType device_type) {
     if(device_type == base::DeviceType::kDeviceCUDA) {
         return matmul_kernel_cu_qint8;

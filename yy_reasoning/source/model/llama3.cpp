@@ -107,7 +107,7 @@ LLama2Model::LLama2Model(base::TokenizerType tokenizer_type, std::string token_p
             std::move(model_path), is_quamt_model) {}
         
 
-//未完成
+
 //参数检查 → 设备初始化 → 读权重 → 分配内存 → 预计算 RoPE → 生成采样器
 base::Status LLama2Model::init(base::DeviceType device_type) {  //init模型时传入device_type, 决定init在哪个设备上
     // using namespace base;
@@ -142,8 +142,15 @@ base::Status LLama2Model::init(base::DeviceType device_type) {  //init模型时�
     init_mem();
 
     //预计算ROPE
-    if(_device_type == base::DeviceType::kDeviceCPU) {
-
+    if (_device_type == base::DeviceType::kDeviceCPU) {
+        kernel::sin_cos_cache_calc_cpu(_config->_head_size, _config->_seq_len,
+                                    get_buffer(ModelBufferType::kSinCache).ptr<float>(),
+                                    get_buffer(ModelBufferType::kCosCache).ptr<float>());
+    } else {
+        CHECK_NE(_cuda_config, nullptr);
+        kernel::sin_cos_cache_calc_cu(_config->_head_size, _config->_seq_len,
+                                    get_buffer(ModelBufferType::kSinCache),
+                                    get_buffer(ModelBufferType::kCosCache), _cuda_config->stream);
     }
 
     //生成采样器

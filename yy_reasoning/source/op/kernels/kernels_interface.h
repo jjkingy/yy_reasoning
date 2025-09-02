@@ -37,6 +37,11 @@ using MHAKernel = void (*)(int32_t pos, int32_t head_num, int32_t layer_index, i
 using SwigluKernel = void (*)(const tensor::Tensor& input1, const tensor::Tensor& input2,
                               const tensor::Tensor& output, void* stream);
 
+using RoPEKernel = void (*)(int32_t dim, int32_t kv_dim, int32_t head_size,
+                           const tensor::Tensor& input_q, const tensor::Tensor& input_k,
+                           const tensor::Tensor& input_pos, const tensor::Tensor& sin_cache,
+                           const tensor::Tensor& cos_cache, void* stream);
+
 void softmax_inplace_cpu(const float* input_ptr, size_t size);
 
 MatmulKernel get_matmul_kernel(base::DeviceType device);
@@ -44,6 +49,8 @@ MatmulKernel get_matmul_kernel(base::DeviceType device);
 MatmulKernelQuant get_matmul_kernel_quant8(base::DeviceType device_type);
 
 AddKernel get_add_kernel(base::DeviceType device_type);
+
+RoPEKernel get_rope_kernel(base::DeviceType device_type);
 
 EmbeddingKernel get_emb_kernel(base::DeviceType device_type);
 
