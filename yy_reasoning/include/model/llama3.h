@@ -45,6 +45,8 @@ public:
 
     op::EmbeddingOutput embedding(const std::vector<int>& tokens) const override;
 
+    int32_t gerenate(const std::string& sentence, int max_seq_len, bool need_output = false) const override;
+
 private:
     void init_mem() override;
 

@@ -27,6 +27,8 @@ public:
     virtual base::Status forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                int& next) const = 0;
 
+    virtual int32_t gerenate(const std::string& sentence, int max_seq_len, bool need_output = false) const = 0;
+
     virtual tensor::Tensor& get_buffer(ModelBufferType buffer_idx);
 
     virtual const tensor::Tensor& get_buffer(ModelBufferType buffer_idx);

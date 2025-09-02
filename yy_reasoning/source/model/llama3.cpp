@@ -623,6 +623,50 @@ base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Ten
     return base::error::Success();
 }
 
+int32_t generate(const std::string& sentence, int max_seq_len, bool need_output = false) const {
+    auto tokens = encode(sentence);
+    int32_t prompt_len = tokens.size();
+    LOG_IF(FATAL, tokens.empty()) << "The tokens is empty";
+
+    int32_t pos = 0;
+    int32_t next = -1;
+    bool is_prompt = true;
+    const auto& prompt_embedding = embedding(tokens);
+    tensor::Tensor pos_tensor = get_buffer(ModelBufferType::kInputPos);
+    
+    std::vector<int32_t> output;
+
+    while(pos < max_seq_len) {
+        pos_tensor.index<int32_t>(0) = pos;
+        if(pos < prompt_len - 1) {
+            tensor::Tensor input = fill_input(pos_tensor, prompt_embedding, is_prompt);
+            predict(input, pos_tensor, is_prompt, next);
+        } else {
+            is_prompt = false;
+            tokens = std::vector<int32_t>{next};
+            const auto& token_embedding = embedding(tokens);
+            tensor::Tensor input = fill_input(pos_tensor, token_embedding, is_prompt);
+            predict(input, pos_tensor, is_prompt, next);
+        }
+        if(is_sentence_ending(next)) {
+            break;
+        }
+        if(is_prompt) {
+            next = tokens.at(pos + 1);
+            output.push_back(next);
+        } else {
+            output.push_back(next);
+        }
+        pos += 1;
+    }
+    if(need_output) {
+        printf("%s ", decode(output).data());
+        fflush(stdout);
+    }
+    
+    return std::min(pos, max_seq_len);
+}
+
 void LLama2Model::attention_rms(int32_t layer_idx, const tensor::Tensor& input) const {
     CHECK(_llama_layers != nullptr);
     
