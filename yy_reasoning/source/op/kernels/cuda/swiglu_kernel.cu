@@ -1,6 +1,9 @@
 #include <tensor/tensor.h>
 #include "swiglu_kernel.cuh"
 
+/*
+fused kernel 把silu激活逐元素相乘融合，减少对全军内存的访问(一次激活，一次乘法，两次内核融合)
+*/
 namespace kernel {
 
 __global__ void swiglu_kernel_cu_fp32(int size, const float* in1, const float* in2, float* out) {

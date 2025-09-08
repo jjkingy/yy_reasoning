@@ -101,6 +101,9 @@ __device__ void rope_calc(float fcr, float fci, float* vec, int32_t idx) {
       make_float2(vec_value.x * fcr - vec_value.y * fci, vec_value.x * fci + vec_value.y * fcr);
 }
 
+
+//对 Q, K 的每个 head，每个 (dim_even, dim_odd) 对，做二维旋转。
+//并行性主要体现在 对 Q/K 中每一对维度可以独立并行旋转。
 __global__ void rope_kernel_cu_fp32(int pos, int dim, int kv_dim, int head_size,
                                     const float* input_q, const float* input_k,
                                     const float* sin_cache, const float* cos_cache) {
@@ -115,18 +118,26 @@ __global__ void rope_kernel_cu_fp32(int pos, int dim, int kv_dim, int head_size,
   float fcr = *(cos_cache + pos * head_size + head_dim);
 
   rope_calc(fcr, fci, const_cast<float*>(input_q), idx);
+  
+  //kv_dim 和 q_dim不一样 需要单独判断
   if (idx >= kv_dim) {
     return;
   }
   rope_calc(fcr, fci, const_cast<float*>(input_k), idx);
 }
 
+//sin(θ(pos,dim)), cos(θ(pos,dim))
+//并行计算max_seq_len * head_dim个值：每个thread计算一个head_dim
+//在pos方向穿行 在head_dim并行
 __global__ void sin_cos_calc(int head_size, int max_seq_len, float* sin_cache, float* cos_cache) {
   int idx = threadIdx.x + blockDim.x * blockIdx.x;
   int head_dim = idx % head_size;
   for (int pos = 0; pos < max_seq_len; ++pos) {
+    //计算角度值
     float freq = 1.0f / pow(10000.0f, static_cast<float>(head_dim) / static_cast<float>(head_size));
     float val = static_cast<float>(pos) * freq;
+    //计算并存 sin(θ) 和 cos(θ) 到全局缓存 sin_cache / cos_cache
+    //前向推理时，直接查表，不用每次都算 sin/cos，节省算力。
     float fcr = cosf(val);
     float fci = sinf(val);
     *(sin_cache + pos * head_size + head_dim) = fci;
