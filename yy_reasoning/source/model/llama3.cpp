@@ -606,7 +606,20 @@ op::EmbeddingOutput LLama2Model::embedding(const std::vector<int>& tokens) {
     return output;
 }
 
+/*
+Rope 与 Norm 融合
 
+将 Rope 与 Q/K 投影后融合（fused QKV + Rope），减少一次访存；attentino_qkv
+
+Norm 与线性层前融合（业界常见 trick，需数值验证）。
+Norm 与 Linear 前融合一般发生在：
+
+Attention 输入阶段：Norm → Q/K/V projection
+
+MLP 输入阶段：Norm → 第一层 Linear projection
+
+换句话说，它是在 进入 QKV 或 MLP 前的 Norm + Linear 里做 CUDA 融合。
+*/
 base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                   int& next) const {
     if(input.is_empty()) {
@@ -630,7 +643,140 @@ base::Status LLama2Model::forward(const tensor::Tensor& input, const tensor::Ten
     return base::error::Success();
 }
 
-int32_t generate(const std::string& sentence, int max_seq_len, bool need_output = false) const {
+void LLama2Model::attention_rms(int32_t layer_idx, const tensor::Tensor& input) const {
+    CHECK(_llama_layers != nullptr);
+    
+    //attention rmsnorm
+    tensor::Tensor rmsnorm_output = get_buffer(ModelBufferType::kOutputRMSNorm);
+    std::shared_ptr<op::Layer> rmsnorm_layer = _llama_layers->_rmsnorm_layers.at(layer_idx);
+    if (!rmsnorm_layer) {
+        LOG(FATAL) << "The attention rmsnorm layer is a null pointer in the llama2 model";
+    }
+    STATUS_CHECK(rmsnorm_layer->forward(input, rmsnorm_output));
+}
+
+//rope与q/k投影融合(fused QKV + Rope)
+void LLama2Model::attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
+    CHECK(_llama_layers != nullptr);
+
+    //kv cache
+    tensor::Tensor query = this->get_buffer(ModelBufferType::kQuery);
+    int32_t pos = pos_tensor.index<int32_t>(0);
+    
+    const auto& [key, val] = slice_kv_cache(layer_idx, pos);
+
+    //wq wk wv @ input
+    //query
+    const auto& query_layer = _llama_layers->_wq_layers.at(layer_idx);
+    CHECK_NE(query_layer, nullptr) << "The query layer in attention block is null pointer";
+    auto rmsnorm_output = get_buffer(ModelBufferType::kOutputRMSNorm);
+    STATUS_CHECK(query_layer->forward(rmsnorm_output, query));
+
+    //key
+    const auto& key_layer = _llama_layers->_wk_layers.at(layer_idx);
+    CHECK_NE(key_layer, nullptr) << "The key layer in attention block is null pointer.";
+    STATUS_CHECK(key_layer->forward(rmsnorm_output, key));
+
+    //value
+    const auto& value_layer = _llama_layers->_wv_layers.at(layer_idx);
+    CHECK_NE(value_layer, nullptr) << "The value layer in the attention block is null pointer.";
+    STATUS_CHECK(value_layer->forward(rmsnorm_output, val));
+
+    //rope
+    CHECK_NE(_llama_layers->_rope_layer, nullptr)
+        << "The Rope layer in the attention block is null pointer.";
+    STATUS_CHECK(_llama_layers->_rope_layers->forward(
+        query, key, pos_tensor, get_buffer(ModelBufferType::kSinCache),
+        get_buffer(ModelBufferType::kCosCache), tensor::Tensor{}));
+}
+
+//mha内核融合
+//把Attention公式写在一个cuda kernel
+//整个mha分为 attention + attention_weight * wo两个部分
+void LLama2Model::attention_mha(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
+    CHECK(_llama_layers != nullptr);
+
+    //mha
+    tensor::Tensor key_cache = get_buffer(ModelBufferType::kKeyCache);
+    tensor::Tensor val_cache = get_buffer(ModelBufferType::kValueCache);
+
+    // VAL = [val1,val2,...val t]
+    // output @ VAL = 最终的结果
+    tensor::Tensor mha_output = get_buffer(ModelBufferType::kOutputMHA);
+    tensor::Tensor score_storage = get_buffer(ModelBufferType::kScoreStorage);
+    tensor::Tensor query = this->get_buffer(ModelBufferType::kQuery);
+
+    const auto& mha_layer = _llama_layers->_mha_layer;
+    CHECK_NE(mha_layer, nullptr) << "The multi head attention is null pointer";
+    int pos = pos_tensor.index<int32_t>(0);
+    //dynamic_pointer_cast 用于多态指针之间的安全转换(只适用shared_ptr)
+    //它解决的就是：当你手里只有一个基类智能指针，但你需要用到派生类的接口/数据时，怎么安全转换
+    //https://blog.csdn.net/qq_28127741/article/details/120625183
+    std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_pos(pos);
+    std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_layer_idx(layer_idx);
+    STATUS_CHECK(mha_layer->forward(query, score_storage, key_cache, val_cache, mha_output));
+    
+    //wo @ attention output 最后的linear
+    tensor::Tensor atten_output = get_buffer(ModelBufferType::kAttenOutput);
+    const auto& wo_layer = _llama_layers->_wo_layers.at(layer_idx);
+    CHECK_NE(wo_layer, nullptr) << "The weight output is null pointer."
+    STATUS_CHECK(wo_layer->forward(mha_output, atten_output));
+}
+
+//rmsnorm 与 feedford融合
+void LLama2Model::feed_forward(int32_t layer_idx, const tensor::Tensor& input) const {
+    CHECK(_llama_layers != nullptr);
+
+    //residual add
+    CHECK_NE(_llama_layers->_add_layer, nullptr) << "The add layer in the feedword block is null pointer";
+    STATUS_CHECK(_llama_layers->_add_layer->forward(input, get_buffer(ModelBufferType::kAttenOutput), input));
+
+    //ffn rmsnorm
+    tensor::Tensor ffn_norm_output = get_buffer(ModelBufferType::kFFNRMSNorm);  //获取ffn_rmsnorm的中间缓存
+    const auto& ffn_rmsnorm = _llama_layers->_rmsnorm_layers.at(_config->_layer_num, layer_idx);
+    CHECK_NE(ffn_rmsnorm, nullptr) << "The final rmsnorm layer in feed forward block is null pointer";
+    STATUS_CHECK(ffn_rmsnorm->forward(input, ffn_norm_output));
+
+    // gate wq
+    tensor::Tensor w1_output = get_buffer(ModelBufferType::kW1Output);
+    const auto& w1_layer = _llama_layers->_w1_layers.at(layer_idx);
+    CHECK_NE(w1_layer, nullptr) << "The w1 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w1_layer->forward(ffn_norm_output, w1_output));
+
+    //w3 up_proj
+    tensor::Tensor w3_output = get_buffer(ModelBufferType::kW3Output);
+    const auto& w3_layer = _llama_layers->_w3_layers.at(layer_idx);
+    CHECK_NE(w3_layer, nullptr) << "The w3 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w3_layer->forward(ffn_norm_output, w3_output));
+
+    //swiGLU
+    CHECK_NE(_llama_layers->_swiglu_layer, nullptr)
+        << "The swiglu layer in the feedforward block is null pointer";
+    STATUS_CHECK(_llama_layers->_swiglu_layer->forward(w1_output, w3_output, w1_output));
+
+    //w2 down_proj
+    tensor::Tensor w2_output = get_buffer(ModelBufferType::kW2Output);
+    const auto& w2_layer = _llama_layers->_w2_layers.at(layer_idx);
+    CHECK_NE(w2_layer, nullptr) << "The w2 layer in the feedforward block is null pointer";
+    STATUS_CHECK(w2_layer->forward(w1_output, w2_output));
+
+    //residual add
+    STATUS_CHECK(_llama_layers->_add_layer->forward(input, w2_output, input));
+
+}
+
+void LLama2Model::cls_logits(const tensor::Tensor& input) const {
+    CHECK(_llama_layer != nullptr);
+    const auto& norm = _llama_layers->_rmsnorm_layers.at(2 * _config->_layer_num);
+    CHECK_NE(norm, nullptr);
+    STATUS_CHECK(norm->forward(input, input));
+
+    tensor::Tensor forward_output = get_buffer(ModelBufferType::kForwardOutput);
+    CHECK_NE(_llama_layers->_cls_layer, nullptr);
+    STATUS_CHECK(_llama_layers->_cls_layer->forward(input, forward_output));
+ }
+
+int32_t LLama2Model::generate(const std::string& sentence, int max_seq_len, bool need_output = false) const {
     auto tokens = encode(sentence);
     int32_t prompt_len = tokens.size();
     LOG_IF(FATAL, tokens.empty()) << "The tokens is empty";
@@ -674,142 +820,13 @@ int32_t generate(const std::string& sentence, int max_seq_len, bool need_output 
     return std::min(pos, max_seq_len);
 }
 
-void LLama2Model::attention_rms(int32_t layer_idx, const tensor::Tensor& input) const {
-    CHECK(_llama_layers != nullptr);
-    
-    //attention rmsnorm
-    tensor::Tensor rmsnorm_output = get_buffer(ModelBufferType::kOutputRMSNorm);
-    std::shared_ptr<op::Layer> rmsnorm_layer = _llama_layers->_rmsnorm_layers.at(layer_idx);
-    if (!rmsnorm_layer) {
-        LOG(FATAL) << "The attention rmsnorm layer is a null pointer in the llama2 model";
-    }
-    STATUS_CHECK(rmsnorm_layer->forward(input, rmsnorm_output));
-}
-
-//未完成rope后端实现
-void LLama2Model::attention_qkv(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
-    CHECK(_llama_layers != nullptr);
-
-    //kv cache
-    tensor::Tensor query = this->get_buffer(ModelBufferType::kQuery);
-    int32_t pos = pos_tensor.index<int32_t>(0);
-    
-    const auto& [key, val] = slice_kv_cache(layer_idx, pos);
-
-    //wq wk wv @ input
-    //query
-    const auto& query_layer = _llama_layers->_wq_layers.at(layer_idx);
-    CHECK_NE(query_layer, nullptr) << "The query layer in attention block is null pointer";
-    auto rmsnorm_output = get_buffer(ModelBufferType::kOutputRMSNorm);
-    STATUS_CHECK(query_layer->forward(rmsnorm_output, query));
-
-    //key
-    const auto& key_layer = _llama_layers->_wk_layers.at(layer_idx);
-    CHECK_NE(key_layer, nullptr) << "The key layer in attention block is null pointer.";
-    STATUS_CHECK(key_layer->forward(rmsnorm_output, key));
-
-    //value
-    const auto& value_layer = _llama_layers->_wv_layers.at(layer_idx);
-    CHECK_NE(value_layer, nullptr) << "The value layer in the attention block is null pointer.";
-    STATUS_CHECK(value_layer->forward(rmsnorm_output, val));
-
-    //rope
-    CHECK_NE(_llama_layers->_rope_layer, nullptr)
-        << "The Rope layer in the attention block is null pointer.";
-    STATUS_CHECK(_llama_layers->_rope_layers->forward(
-        query, key, pos_tensor, get_buffer(ModelBufferType::kSinCache),
-        get_buffer(ModelBufferType::kCosCache), tensor::Tensor{}));
-}
-
-void LLama2Model::attention_mha(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
-    CHECK(_llama_layers != nullptr);
-
-    //mha
-    tensor::Tensor key_cache = get_buffer(ModelBufferType::kKeyCache);
-    tensor::Tensor val_cache = get_buffer(ModelBufferType::kValueCache);
-
-    // VAL = [val1,val2,...val t]
-    // output @ VAL = 最终的结果
-    tensor::Tensor mha_output = get_buffer(ModelBufferType::kOutputMHA);
-    tensor::Tensor score_storage = get_buffer(ModelBufferType::kScoreStorage);
-    tensor::Tensor query = this->get_buffer(ModelBufferType::kQuery);
-
-    const auto& mha_layer = _llama_layers->_mha_layer;
-    CHECK_NE(mha_layer, nullptr) << "The multi head attention is null pointer";
-    int pos = pos_tensor.index<int32_t>(0);
-    //dynamic_pointer_cast 用于多态指针之间的安全转换(只适用shared_ptr)
-    //它解决的就是：当你手里只有一个基类智能指针，但你需要用到派生类的接口/数据时，怎么安全转换
-    //https://blog.csdn.net/qq_28127741/article/details/120625183
-    std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_pos(pos);
-    std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_layer_idx(layer_idx);
-    STATUS_CHECK(mha_layer->forward(query, score_storage, key_cache, val_cache, mha_output));
-    
-    //wo @ attention output 最后的linear
-    tensor::Tensor atten_output = get_buffer(ModelBufferType::kAttenOutput);
-    const auto& wo_layer = _llama_layers->_wo_layers.at(layer_idx);
-    CHECK_NE(wo_layer, nullptr) << "The weight output is null pointer."
-    STATUS_CHECK(wo_layer->forward(mha_output, atten_output));
-}
-
-void LLama2Model::feed_forward(int32_t layer_idx, const tensor::Tensor& input) const {
-    CHECK(_llama_layers != nullptr);
-
-    //residual add
-    CHECK_NE(_llama_layers->_add_layer, nullptr) << "The add layer in the feedword block is null pointer";
-    STATUS_CHECK(_llama_layers->_add_layer->forward(input, get_buffer(ModelBufferType::kAttenOutput), input));
-
-    //ffn rmsnorm
-    tensor::Tensor ffn_norm_output = get_buffer(ModelBufferType::kFFNRMSNorm);  //获取ffn_rmsnorm的中间缓存
-    const auto& ffn_rmsnorm = _llama_layers->_rmsnorm_layers.at(_config->_layer_num, layer_idx);
-    CHECK_NE(ffn_rmsnorm, nullptr) << "The final rmsnorm layer in feed forward block is null pointer";
-    STATUS_CHECK(ffn_rmsnorm->forward(input, ffn_norm_output));
-
-    // gate wq
-    tensor::Tensor w1_output = get_buffer(ModelBufferType::kW1Output);
-    const auto& w1_layer = _llama_layers->_w1_layers.at(layer_idx);
-    CHECK_NE(w1_layer, nullptr) << "The w1 layer in the feedforward block is null pointer";
-    STATUS_CHECK(w1_layer->forward(ffn_norm_output, w1_output));
-
-    //w3 up_proj
-    tensor::Tensor w3_output = get_buffer(ModelBufferType::kW3Output);
-    const auto& w3_layer = _llama_layers->_w3_layers.at(layer_idx);
-    CHECK_NE(w3_layer, nullptr) << "The w3 layer in the feedforward block is null pointer";
-    STATUS_CHECK(w3_layer->forward(ffn_norm_output, w3_output));
-
-    //swiGLU
-    CHECK_NE(_llama_layers->_swiglu_layer, nullptr)
-        << "The swiglu layer in the feedforward block is null pointer";
-    STATUS_CHECK(_llama_layers->_swiglu_layer->forward(w1_output, w3_output, w1_output));
-
-    //w2 down_proj
-    tensor::Tensor w2_output = get_buffer(ModelBufferType::kW2Output);
-    const auto& w2_layer = _llama_layers->_w2_layers.at(layer_idx);
-    CHECK_NE(w2_layer, nullptr) << "The w2 layer in the feedforward block is null pointer";
-    STATUS_CHECK(w2_layer->forward(w1_output, w2_output));
-
-    //residual add
-    STATUS_CHECK(_llama_layers->_add_layer->forward(input, w2_output, input));
-
-}
-
- void LLama2Model::cls_logits(const tensor::Tensor& input) const {
-    CHECK(_llama_layer != nullptr);
-    const auto& norm = _llama_layers->_rmsnorm_layers.at(2 * _config->_layer_num);
-    CHECK_NE(norm, nullptr);
-    STATUS_CHECK(norm->forward(input, input));
-
-    tensor::Tensor forward_output = get_buffer(ModelBufferType::kForwardOutput);
-    CHECK_NE(_llama_layers->_cls_layer, nullptr);
-    STATUS_CHECK(_llama_layers->_cls_layer->forward(input, forward_output));
- }
-
 base::Status LLama2Model::predict(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,
                                     bool is_prompt, int& next) const {
     auto status = forward(input, pos_tensor, next);
     if(!status) {
         return status;
     }
-    next = post_processing(pos_tensor, is_prompt);
+    int32_t next = post_processing(pos_tensor, is_prompt);
     return base::error::Success();
 }
 

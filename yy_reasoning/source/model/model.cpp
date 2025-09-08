@@ -251,6 +251,7 @@ base::Status Model::create_encode_layer() {
     return error::Success();
 }
 
+//从模型导出文件中生成模型
 base::Status Model::gen_model_from_file() {
     using namespace base;
 
