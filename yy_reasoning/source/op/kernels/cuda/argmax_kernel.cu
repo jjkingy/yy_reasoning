@@ -2,38 +2,16 @@
 #include "argmax_kernel.cuh"
 #include "tensor/tensor.h"
 #include <float.h>
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
 
-#define THREAD_PER_BLOCK 256
-#define warpSize 32
+
+#define THREAD_PER_BLOCK 512
 
 namespace kernel {
-// __device__ void warpReduce(float* sdata, size_t* sidx, int tid) {
-//     if(sdata[tid] < sdata[tid + 32]) {
-//         sdata[tid] = sdata[tid + 32];
-//         sidx[tid] = sidx[32 + tid];
-//     }
-//     if(sdata[tid] < sdata[tid + 16]) {
-//         sdata[tid] = sdata[tid + 16];
-//         sidx[tid] = sidx[16 + tid];
-//     }
-//     if(sdata[tid] < sdata[tid + 8]) {
-//         sdata[tid] = sdata[tid + 8];
-//         sidx[tid] = sidx[8 + tid];
-//     }
-//     if(sdata[tid] < sdata[tid + 4]) {
-//         sdata[tid] = sdata[tid + 4];
-//         sidx[tid] = sidx[4 + tid];
-//     }
-//     if(sdata[tid] < sdata[tid + 2]) {
-//         sdata[tid] = sdata[tid + 2];
-//         sidx[tid] = sidx[2 + tid];
-//     }
-//     if(sdata[tid] < sdata[tid + 1]) {
-//         sdata[tid] = sdata[tid + 1];
-//         sidx[tid] = sidx[1 + tid];
-//     }
-// }
 
+/*我的终极内核--------------------------------*/
 __device__ void warpReduce(float* sdata, size_t* sidx) {
     int tid = threadIdx.x;
     for (int offset = warpSize / 2; offset > 0; offset >>= 1) {
@@ -46,89 +24,89 @@ __device__ void warpReduce(float* sdata, size_t* sidx) {
     }
 }
 
-// 声明外部函数（你已经写好的）
-__global__ void argmax_kernel_fp32_block(const float* in, size_t size, size_t* output_idx, float* out) {
-    __shared__ float sdata[THREAD_PER_BLOCK];
-    __shared__ size_t sidx[THREAD_PER_BLOCK];
 
-    int tid = threadIdx.x;
-    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-    sdata[tid] = idx < size ? in[idx] : -FLT_MAX;
-    sidx[tid] = idx < size ? idx : 0;
+__global__ void  argmax_kernel_fp32_myblock(const float* in, size_t* output_idx) {
+  __shared__ float sdata[THREAD_PER_BLOCK];
+  __shared__ size_t sindex[THREAD_PER_BLOCK];
+  unsigned int idx = blockIdx.x * (2*blockDim.x) + threadIdx.x;
+  int tid = threadIdx.x;
+  sdata[tid] = fmaxf(in[idx], in[idx + blockDim.x]);
+  sindex[tid] = in[idx] > in[idx + blockDim.x] ? idx : idx + blockDim.x;
+  __syncthreads();
+
+  for(int s = blockDim.x / 2; s > 32; s >>= 1) {
+    if(tid < s) {
+      sdata[tid] = fmaxf(sdata[tid], sdata[tid + s]);
+      sindex[tid] = sdata[tid] > sdata[tid + s] ? sindex[tid] : sindex[tid + s];
+    }
     __syncthreads();
-
-    for(int s = blockDim.x / 2; s > 32; s >>= 1) {
-        if(tid < s) {
-            if(sdata[tid] < sdata[tid + s]) {
-                sdata[tid] = sdata[tid + s];
-                sidx[tid] = sidx[s + tid];
-            }
-        }
-        __syncthreads();
-    }
-    if(tid < 32) {
-        warpReduce(sdata, sidx);
-    }
-
-    if(tid == 0) {
-        output_idx[blockIdx.x] = sidx[0];
-        out[blockIdx.x] = sdata[0];
-    }
-
+  }
+  if(tid < 32) {
+    warpReduce(sdata, sindex);
+  }
+  if(tid == 0) {
+    output_idx[blockIdx.x] = sindex[tid];
+  }
 }
 
-__global__ void argmax_kernel_fp32_all(const float* in, size_t size, size_t* block_idx, size_t* output_idx) {
-    __shared__ float sdata[THREAD_PER_BLOCK];
-    __shared__ size_t sidx[THREAD_PER_BLOCK];
+template <typename T1, typename T2>
+__global__ void argmax_kernel_fp32_myall(const float* in, size_t* block_idx, size_t* output_idx) {
+  // extern __shared__ float sdata[];
+  // extern __shared__ size_t sindex[];
+  extern __shared__ unsigned char smem[];
+  T1* sdata = reinterpret_cast<T1*>(smem);
+  T2* sindex = reinterpret_cast<T2*>(smem + blockDim.x * sizeof(float));
 
-    int tid = threadIdx.x;
-    sdata[tid] = tid < size ? in[tid] : -FLT_MAX;
-    sidx[tid] = tid < size ? block_idx[tid] : 0;
+  int tid = threadIdx.x;
+  sdata[tid] = fmaxf(in[block_idx[tid]], in[block_idx[tid + blockDim.x]]);
+  sindex[tid] = 
+    in[block_idx[tid]] > in[block_idx[tid + blockDim.x]] ? block_idx[tid] : block_idx[tid + blockDim.x];
+  __syncthreads();
+
+  for(int s = blockDim.x / 2; s > 32; s >>= 1) {
+    if(tid < s) {
+      sdata[tid] = fmaxf(sdata[tid], sdata[tid + s]);
+      sindex[tid] = sdata[tid] > sdata[tid + s] ? sindex[tid] : sindex[tid + s];
+    }
     __syncthreads();
-
-    for(int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if(tid < s) {
-            if(sdata[tid] < sdata[tid + s]) {
-                sdata[tid] = sdata[tid + s];
-                sidx[tid] = sidx[s + tid];
-            }
-        }
-        __syncthreads();
-    }
-
-    if(tid == 0) {
-        *output_idx = sidx[0];
-    }
-
+  }
+  if(tid < 32) {
+    warpReduce(sdata, sindex);
+  }
+  if(tid == 0) {
+    output_idx[tid] = sindex[tid];
+  }
 }
+
 
 size_t argmax_kernel_cu(const float* input_ptr, size_t size, void* stream) {
     int thread_num = THREAD_PER_BLOCK;
     int block_num = (size + thread_num - 1) / thread_num;
+    block_num /= 2;
 
     auto alloc_cu = 
         base::AllocatorFactory<base::CUDADeviceAllocator>::get_instance();
     
-    size_t* block_index = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t) * block_num));
-    float* out = static_cast<float*>(alloc_cu->allocate(sizeof(float) * block_num));
-    size_t* index = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t)));
+    size_t* d_block_idx = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t) * block_num));
+    size_t* d_idx = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t)));
 
     size_t output_index = 0;
-    
+    int threads = block_num / 2;
+    size_t smemSize = sizeof(float) * blocks + sizeof(size_t) * blocks;
 
     if(!stream) {
-        argmax_kernel_fp32_block<<<block_num, thread_num>>>(input_ptr, size, block_index, out);
-        argmax_kernel_fp32_all<<<1, thread_num>>>(out, block_num, block_index, index);
-        cudaMemcpy(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost);
+        argmax_kernel_fp32_myblock<<<block_num, THREAD_PER_BLOCK>>>(input_ptr, d_block_idx);
+        argmax_kernel_fp32_myall<float, size_t><<<1, threads, smemSize>>>(input_ptr, d_block_idx, d_idx);
+        cudaMemcpy(&output_index, d_idx, sizeof(size_t), cudaMemcpyDeviceToHost);
     } else {
         cudaStream_t _stream = static_cast<cudaStream_t>(stream);
-        argmax_kernel_fp32_block<<<block_num, thread_num, 0, _stream>>>(input_ptr, size, block_index, out);
-        argmax_kernel_fp32_all<<<1, thread_num, 0, _stream>>>(out, block_num, block_index, index);
-        cudaMemcpyAsync(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost, _stream);
+        argmax_kernel_fp32_myblock<<<block_num, THREAD_PER_BLOCK, 0, _stream>>>(input_ptr, d_block_idx);
+        argmax_kernel_fp32_myall<float, size_t><<<1, threads, smemSize, _stream>>>(input_ptr, d_block_idx, d_idx);
+        cudaMemcpyAsync(&output_index, d_idx, sizeof(size_t), cudaMemcpyDeviceToHost, _stream);
     }
     return output_index;
 }
 
-}
+}    //kernel
 
 
