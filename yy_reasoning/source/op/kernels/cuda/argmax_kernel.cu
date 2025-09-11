@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 
-#define THREAD_PER_BLOCK 512
+#define THREAD_PER_BLOCK 256
 
 namespace kernel {
 
@@ -55,7 +55,7 @@ __global__ void argmax_kernel_fp32_myall(const float* in, size_t* block_idx, siz
   // extern __shared__ size_t sindex[];
   extern __shared__ unsigned char smem[];
   T1* sdata = reinterpret_cast<T1*>(smem);
-  T2* sindex = reinterpret_cast<T2*>(smem + blockDim.x * sizeof(float));
+  T2* sindex = reinterpret_cast<T2*>(smem + blockDim.x * sizeof(T1));
 
   int tid = threadIdx.x;
   sdata[tid] = fmaxf(in[block_idx[tid]], in[block_idx[tid + blockDim.x]]);
@@ -92,7 +92,7 @@ size_t argmax_kernel_cu(const float* input_ptr, size_t size, void* stream) {
 
     size_t output_index = 0;
     int threads = block_num / 2;
-    size_t smemSize = sizeof(float) * blocks + sizeof(size_t) * blocks;
+    size_t smemSize = sizeof(float) * threads + sizeof(size_t) * threads;
 
     if(!stream) {
         argmax_kernel_fp32_myblock<<<block_num, THREAD_PER_BLOCK>>>(input_ptr, d_block_idx);

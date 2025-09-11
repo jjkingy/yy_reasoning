@@ -5,6 +5,8 @@
 
 namespace kernel {
 
+
+//gemv的实现相当于先做乘法计算再进行规约计算
 template<int THREAD_PER_BLOCK, int ROW_PER_BLOCK>
 __global__ void matmul_kernel_cu_fp32(const float* input, const float* weight, float* output, int M, int K) {
     __shared__ float sdata[THREAD_PER_BLOCK];

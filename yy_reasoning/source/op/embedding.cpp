@@ -16,6 +16,8 @@ EmbeddingLayer::EmbeddingLayer(base::DeviceType device_type, int32_t dim, int32_
 
 
 //仍有疑问，input12分别是什么
+//_embedding_layer->forward(input_tokens, input_token_num, input_embeddings)
+//input1是输入的tokens input2是输入token的数量
 base::Status EmbeddingLayer::check() const {
     const auto& input_tensor = get_input(0);
 
